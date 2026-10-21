@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BikeFit Analyzer</title>
+<meta name="description" content="Video-basiertes Bike-Fitting für Rennrad und Zeitfahrrad – läuft komplett im Browser.">
+<style>
+:root{
+  --bg:#f5f6f8;--card:#ffffff;--ink:#16181d;--muted:#5d6472;--line:#e2e5ea;
+  --accent:#e4572e;--accent-ink:#fff;--ok:#1f9d55;--warn:#d69e2e;--bad:#d64545;
+  --chip:#eef0f3;--shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115;--card:#181b21;--ink:#e9ecf1;--muted:#9aa3b2;--line:#2a2f38;
+    --chip:#232831;--shadow:none;
+  }
+}
+:root[data-theme="dark"]{--bg:#0f1115;--card:#181b21;--ink:#e9ecf1;--muted:#9aa3b2;--line:#2a2f38;--chip:#232831;--shadow:none}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 16px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+h2{font-size:17px;margin:0 0 12px}
+h3{font-size:15px;margin:16px 0 8px}
+.sub{color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+select,input[type=number],input[type=file]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit}
+.seg{display:flex;background:var(--chip);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;color:var(--muted);padding:9px;border-radius:8px;font:600 14px system-ui;cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.btn{border:0;background:var(--accent);color:var(--accent-ink);padding:11px 18px;border-radius:10px;font:600 15px system-ui;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.stage{position:relative;width:100%;background:#000;border-radius:12px;overflow:hidden;margin-top:12px}
+.stage video,.stage canvas{display:block;width:100%;height:auto}
+.stage canvas{position:absolute;inset:0;pointer-events:none}
+.progress{height:8px;background:var(--chip);border-radius:6px;overflow:hidden;margin-top:12px;display:none}
+.progress div{height:100%;width:0;background:var(--accent);transition:width .15s}
+#status{margin-top:8px;font-size:13px;color:var(--muted);min-height:20px}
+.kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:12px;position:relative}
+.kpi .n{font-size:12px;color:var(--muted);font-weight:600}
+.kpi .v{font-size:24px;font-weight:700;margin-top:2px}
+.kpi .r{font-size:12px;color:var(--muted)}
+.kpi::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0;background:var(--line)}
+.kpi.ok::before{background:var(--ok)}.kpi.warn::before{background:var(--warn)}.kpi.bad::before{background:var(--bad)}
+.recs{list-style:none;padding:0;margin:0}
+.recs li{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.recs li b{display:block;font-size:16px;margin-bottom:2px}
+.recs li .why{color:var(--muted);font-size:13px}
+.recs li.prio1{border-left:4px solid var(--bad)}.recs li.prio2{border-left:4px solid var(--warn)}.recs li.good{border-left:4px solid var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:600}
+.tag.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.tag.warn{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--warn)}
+.tag.bad{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.tag.info{background:var(--chip);color:var(--muted)}
+.scroll{overflow-x:auto}
+.shots{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.shots figure{margin:0}.shots img{width:100%;border-radius:10px;display:block}
+.shots figcaption{font-size:12px;color:var(--muted);margin-top:4px}
+#chart{width:100%;height:240px;display:block}
+details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+summary{cursor:pointer;font-weight:600}
+.hidden{display:none!important}
+.note{font-size:13px;color:var(--muted);background:var(--chip);border-radius:10px;padding:10px 12px;margin-top:12px}
+footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
+@media print{
+  .noprint{display:none!important}
+  body{background:#fff;color:#000}
+  .card{box-shadow:none;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>BikeFit <span>Analyzer</span></h1>
+      <div class="sub">Video-Bike-Fitting für Rennrad & Zeitfahrer – alles läuft lokal im Browser</div>
+    </div>
+    <button class="btn ghost noprint" id="themeBtn" title="Hell/Dunkel">◐</button>
+  </header>
+
+  <!-- SETUP -->
+  <section class="card noprint">
+    <h2>1 · Rad & Setup</h2>
+    <div class="seg" id="bikeSeg">
+      <button data-bike="road" class="on">🚴 Rennrad</button>
+      <button data-bike="tt">🏁 Zeitfahrer / Tri</button>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div>
+        <label for="profile">Zielprofil</label>
+        <select id="profile"></select>
+      </div>
+      <div>
+        <label for="crank">Kurbellänge (mm)</label>
+        <input type="number" id="crank" value="172.5" step="2.5" min="150" max="185">
+      </div>
+      <div>
+        <label for="side">Gefilmte Seite</label>
+        <select id="side">
+          <option value="auto">Automatisch</option>
+          <option value="right">Rechts (Antriebsseite)</option>
+          <option value="left">Links</option>
+        </select>
+      </div>
+      <div>
+        <label for="model">Erkennungsmodell</label>
+        <select id="model">
+          <option value="full">Standard (schnell)</option>
+          <option value="heavy">Genau (langsamer)</option>
+          <option value="lite">Leicht (alte Geräte)</option>
+        </select>
+      </div>
+    </div>
+    <details>
+      <summary>So filmst du richtig</summary>
+      <ul class="sub">
+        <li>Rad auf der Rolle, Kamera <b>exakt seitlich</b> auf Höhe Tretlager/Hüfte, ca. 3 m Abstand, im Querformat.</li>
+        <li>Kamera auf Stativ, nicht zoomen, ganzes Rad und Fahrer im Bild.</li>
+        <li>Enge Kleidung, gutes Licht, ruhiger Hintergrund. Schuhe & Pedale wie im Rennen.</li>
+        <li>Erst 5 Min. warmfahren, dann 20–30 s bei ~85–95 U/min und moderater Last filmen.</li>
+        <li>Rennrad: Hände an den Hoods. Zeitfahrer: in Aeroposition auf den Extensions.</li>
+        <li>Wenn möglich 60 fps – mehr Bilder pro Kurbelumdrehung = genauere Werte.</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- VIDEO -->
+  <section class="card noprint">
+    <h2>2 · Video laden & analysieren</h2>
+    <input type="file" id="file" accept="video/*">
+    <div class="stage hidden" id="stage">
+      <video id="video" playsinline muted controls></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="grid" style="margin-top:12px" id="rangeBox">
+      <div><label for="tStart">Start (s)</label><input type="number" id="tStart" value="0" min="0" step="0.5"></div>
+      <div><label for="tDur">Dauer (s)</label><input type="number" id="tDur" value="15" min="3" max="60" step="1"></div>
+      <div><label for="fps">Bilder/s auswerten</label>
+        <select id="fps"><option>15</option><option selected>30</option><option>60</option></select></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="analyzeBtn" disabled>Analyse starten</button>
+      <button class="btn ghost hidden" id="cancelBtn">Abbrechen</button>
+    </div>
+    <div class="progress" id="prog"><div></div></div>
+    <div id="status"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="resTitle" style="margin:0">Ergebnis</h2>
+        <div class="row noprint">
+          <button class="btn ghost" id="printBtn">Bericht drucken / PDF</button>
+          <button class="btn ghost" id="jsonBtn">JSON exportieren</button>
+        </div>
+      </div>
+      <div class="sub" id="resMeta" style="margin:4px 0 14px"></div>
+      <div class="kpis" id="kpis"></div>
+    </div>
+
+    <div class="card">
+      <h2>Empfehlungen</h2>
+      <ul class="recs" id="recs"></ul>
+      <div class="note">Immer nur <b>eine</b> Änderung auf einmal, max. ca. 5 mm pro Schritt, dann ein paar Ausfahrten testen und neu filmen. Bei Schmerzen oder Taubheit: professionellen Fitter aufsuchen.</div>
+    </div>
+
+    <div class="card">
+      <h2>Schlüsselpositionen</h2>
+      <div class="shots" id="shots"></div>
+    </div>
+
+    <div class="card">
+      <h2>Winkelverlauf</h2>
+      <canvas id="chart"></canvas>
+      <div class="sub">Knie (orange) und Hüfte (blau) über die Zeit · Punkte = unterer Totpunkt</div>
+    </div>
+
+    <div class="card">
+      <h2>Alle Messwerte</h2>
+      <div class="scroll"><table id="table"></table></div>
+    </div>
+  </section>
+
+  <!-- HISTORY / COMPARE -->
+  <section class="card" id="histCard">
+    <h2>Verlauf & Vergleich Rennrad ↔ Zeitfahrer</h2>
+    <div class="scroll"><table id="cmp"></table></div>
+    <div class="sub" id="cmpNote" style="margin-top:8px"></div>
+    <h3>Gespeicherte Analysen</h3>
+    <div class="scroll"><table id="hist"></table></div>
+    <div class="row noprint" style="margin-top:10px">
+      <label class="btn ghost" style="text-transform:none;letter-spacing:0;font-size:14px;margin:0">JSON importieren
+        <input type="file" id="importFile" accept="application/json" class="hidden"></label>
+      <button class="btn ghost" id="clearBtn">Verlauf löschen</button>
+    </div>
+  </section>
+
+  <footer>
+    BikeFit Analyzer · Pose-Erkennung mit MediaPipe · Keine Daten verlassen deinen Browser.<br>
+    Richtwerte aus gängigen Fitting-Methoden – ersetzt kein professionelles Fitting.
+  </footer>
+</div>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+/* =========================================================
+   ZIELBEREICHE – hier kannst du die Richtwerte anpassen
+   Winkel in Grad, kops in mm (Knie vor (+) / hinter (–) Pedalachse)
+   ========================================================= */
+const PROFILES = {
+  road_sport:   { bike:"road", name:"Rennrad – sportlich", r:{ kneeFlexBDC:[35,43], kneeTDC:[66,80], hipTDC:[42,55], back:[30,42], shoulder:[80,95], elbow:[145,165], kops:[-25,10] } },
+  road_comfort: { bike:"road", name:"Rennrad – Endurance/Komfort", r:{ kneeFlexBDC:[35,43], kneeTDC:[66,80], hipTDC:[48,62], back:[40,52], shoulder:[78,92], elbow:[145,165], kops:[-25,10] } },
+  tt_long:      { bike:"tt",   name:"Zeitfahrer – Langdistanz (70.3/Ironman)", r:{ kneeFlexBDC:[33,41], kneeTDC:[64,78], hipTDC:[42,54], back:[15,25], shoulder:[85,95], elbow:[85,110], kops:null } },
+  tt_short:     { bike:"tt",   name:"Zeitfahrer – Kurzdistanz/EZF (aggressiv)", r:{ kneeFlexBDC:[33,41], kneeTDC:[64,78], hipTDC:[38,50], back:[10,20], shoulder:[85,100], elbow:[85,110], kops:null } },
+};
+const METRIC_INFO = {
+  kneeFlexBDC:{ n:"Kniebeugung unten", u:"°", d:"Beugung am unteren Totpunkt (max. Streckung). Hauptindikator für die Sattelhöhe." },
+  kneeTDC:    { n:"Kniewinkel oben", u:"°", d:"Kleinster Kniewinkel am oberen Totpunkt. Zu klein = Knie stark gestaucht." },
+  hipTDC:     { n:"Hüftwinkel oben", u:"°", d:"Schulter–Hüfte–Knie am oberen Totpunkt. Zu klein = Hüfte zu, Leistungsverlust/Atmung." },
+  back:       { n:"Rückenwinkel", u:"°", d:"Oberkörper (Hüfte→Schulter) zur Horizontalen." },
+  shoulder:   { n:"Schulterwinkel", u:"°", d:"Hüfte–Schulter–Ellbogen. Indikator für Reach." },
+  elbow:      { n:"Ellbogenwinkel", u:"°", d:"Oberarm zu Unterarm." },
+  kops:       { n:"Knie über Pedal", u:"mm", d:"Knie-Gelenkzentrum relativ zur Pedalachse bei 3 Uhr (+ = davor)." },
+};
+const LM = {
+  left:  { ear:7, sh:11, el:13, wr:15, hip:23, kn:25, an:27, he:29, toe:31 },
+  right: { ear:8, sh:12, el:14, wr:16, hip:24, kn:26, an:28, he:30, toe:32 },
+};
+const MODEL_URL = m => `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_${m}/float16/1/pose_landmarker_${m}.task`;
+const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const STORE_KEY = "bikefit_history_v1";
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const video = $("video"), overlay = $("overlay"), octx = overlay.getContext("2d");
+let bike = "road", landmarker = null, landmarkerModel = null, tsCounter = 0, cancel = false;
+let frames = [], analysis = null;
+
+/* ---------- Theme ---------- */
+$("themeBtn").onclick = () => {
+  const r = document.documentElement;
+  const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("bikefit_theme", r.dataset.theme); } catch {}
+  if (analysis) drawChart(analysis);
+};
+try { const t = localStorage.getItem("bikefit_theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+
+/* ---------- Bike / Profile ---------- */
+function fillProfiles() {
+  const sel = $("profile"); sel.innerHTML = "";
+  Object.entries(PROFILES).filter(([, p]) => p.bike === bike).forEach(([k, p]) => {
+    const o = document.createElement("option"); o.value = k; o.textContent = p.name; sel.appendChild(o);
+  });
+  if (bike === "tt") sel.value = "tt_long";
+}
+$("bikeSeg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  bike = b.dataset.bike;
+  [...$("bikeSeg").children].forEach(x => x.classList.toggle("on", x === b));
+  fillProfiles();
+  if (analysis) { analysis.profileKey = $("profile").value; analysis.bike = bike; renderResults(analysis, false); }
+});
+$("profile").onchange = () => { if (analysis) { analysis.profileKey = $("profile").value; renderResults(analysis, false); } };
+fillProfiles();
+
+/* ---------- Video ---------- */
+$("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  video.src = URL.createObjectURL(f);
+  $("stage").classList.remove("hidden");
+  frames = []; analysis = null; $("results").classList.add("hidden");
+  video.onloadedmetadata = () => {
+    overlay.width = video.videoWidth; overlay.height = video.videoHeight;
+    const d = video.duration;
+    $("tStart").value = d > 20 ? Math.min(3, d - 15).toFixed(1) : 0;
+    $("tDur").value = Math.max(3, Math.min(15, Math.floor(d - +$("tStart").value)));
+    $("analyzeBtn").disabled = false;
+    setStatus(`Video geladen: ${video.videoWidth}×${video.videoHeight}, ${d.toFixed(1)} s`);
+  };
+};
+function setStatus(t) { $("status").textContent = t; }
+function setProg(p) { $("prog").style.display = "block"; $("prog").firstElementChild.style.width = (p * 100).toFixed(1) + "%"; }
+
+function seek(t) {
+  return new Promise(res => {
+    let done = false;
+    const fin = () => { if (done) return; done = true; video.removeEventListener("seeked", fin); res(); };
+    video.addEventListener("seeked", fin);
+    setTimeout(fin, 2000);
+    video.currentTime = t;
+  });
+}
+
+async function getLandmarker() {
+  const m = $("model").value;
+  if (landmarker && landmarkerModel === m) return landmarker;
+  setStatus("Lade Pose-Modell … (einmalig, ein paar MB)");
+  const vision = await FilesetResolver.forVisionTasks(WASM);
+  const opts = d => ({ baseOptions: { modelAssetPath: MODEL_URL(m), delegate: d }, runningMode: "VIDEO", numPoses: 1,
+    minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+  try { landmarker = await PoseLandmarker.createFromOptions(vision, opts("GPU")); }
+  catch { landmarker = await PoseLandmarker.createFromOptions(vision, opts("CPU")); }
+  landmarkerModel = m;
+  return landmarker;
+}
+
+/* ---------- Analyse ---------- */
+$("cancelBtn").onclick = () => { cancel = true; };
+$("analyzeBtn").onclick = async () => {
+  cancel = false;
+  $("analyzeBtn").disabled = true; $("cancelBtn").classList.remove("hidden");
+  try {
+    const lm = await getLandmarker();
+    video.pause();
+    const fps = +$("fps").value;
+    const t0 = Math.max(0, +$("tStart").value);
+    const t1 = Math.min(video.duration - 0.05, t0 + +$("tDur").value);
+    const n = Math.floor((t1 - t0) * fps);
+    if (n < fps * 3) throw new Error("Bitte mindestens 3 Sekunden auswählen.");
+    frames = [];
+    const W = video.videoWidth, H = video.videoHeight;
+    for (let i = 0; i < n; i++) {
+      if (cancel) throw new Error("Abgebrochen.");
+      const t = t0 + i / fps;
+      await seek(t);
+      tsCounter += 1000 / fps;
+      const r = lm.detectForVideo(video, Math.round(tsCounter));
+      const L = r.landmarks && r.landmarks[0];
+      frames.push(L ? { t, L: L.map(p => ({ x: p.x * W, y: p.y * H, v: p.visibility ?? 1 })) } : { t, L: null });
+      if (L) drawPose(frames[frames.length - 1], null);
+      if (i % 3 === 0) { setProg(i / n); setStatus(`Analysiere Bild ${i + 1} von ${n} …`); }
+    }
+    setProg(1);
+    analysis = computeAnalysis(frames, fps);
+    analysis.profileKey = $("profile").value; analysis.bike = bike;
+    analysis.date = new Date().toISOString();
+    await renderResults(analysis, true);
+    saveHistory(analysis);
+    setStatus(`Fertig: ${analysis.cycles} Kurbelumdrehungen ausgewertet.`);
+    $("results").scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    console.error(err); setStatus("⚠️ " + (err.message || err));
+  } finally {
+    $("analyzeBtn").disabled = false; $("cancelBtn").classList.add("hidden");
+  }
+};
+
+/* ---------- Mathe ---------- */
+const deg = r => r * 180 / Math.PI, rad = d => d * Math.PI / 180;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function ang(a, b, c) {
+  const x1 = a.x - b.x, y1 = a.y - b.y, x2 = c.x - b.x, y2 = c.y - b.y;
+  const d = Math.hypot(x1, y1) * Math.hypot(x2, y2);
+  return d ? deg(Math.acos(Math.max(-1, Math.min(1, (x1 * x2 + y1 * y2) / d)))) : NaN;
+}
+const sorted = a => a.filter(Number.isFinite).sort((x, y) => x - y);
+function pct(a, p) { const s = sorted(a); if (!s.length) return NaN; const i = (s.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return s[lo] + (s[hi] - s[lo]) * (i - lo); }
+const median = a => pct(a, .5);
+function sd(a) { const s = a.filter(Number.isFinite); if (s.length < 2) return 0; const m = s.reduce((x, y) => x + y, 0) / s.length; return Math.sqrt(s.reduce((x, y) => x + (y - m) ** 2, 0) / (s.length - 1)); }
+function smooth(a, w = 1) { return a.map((_, i) => { let s = 0, c = 0; for (let j = i - w; j <= i + w; j++) if (Number.isFinite(a[j])) { s += a[j]; c++; } return c ? s / c : NaN; }); }
+function peaks(a, w) {
+  const out = [], m = median(a);
+  for (let i = 1; i < a.length - 1; i++) {
+    if (!(a[i] > m)) continue;
+    let ok = true;
+    for (let j = Math.max(0, i - w); j <= Math.min(a.length - 1, i + w); j++) {
+      if (a[j] > a[i] || (a[j] === a[i] && j < i)) { ok = false; break; }
+    }
+    if (ok) out.push(i);
+  }
+  return out;
+}
+function period(a, fps) {
+  const m = a.reduce((x, y) => x + y, 0) / a.length, z = a.map(v => v - m);
+  let best = 0, bl = Math.round(fps);
+  for (let lag = Math.round(fps * 0.35); lag <= Math.min(Math.round(fps * 1.6), z.length - 2); lag++) {
+    let s = 0; for (let i = 0; i + lag < z.length; i++) s += z[i] * z[i + lag];
+    s /= (z.length - lag);
+    if (s > best) { best = s; bl = lag; }
+  }
+  return bl;
+}
+
+function computeAnalysis(frames, fps) {
+  const valid = frames.filter(f => f.L);
+  if (valid.length < fps * 2) throw new Error("Zu wenige Bilder mit erkannter Person. Licht, Abstand und Seitenansicht prüfen.");
+  // Seite wählen
+  let side = $("side").value;
+  const visOf = s => median(valid.map(f => ["sh", "hip", "kn", "an"].reduce((x, k) => x + f.L[LM[s][k]].v, 0) / 4));
+  const visL = visOf("left"), visR = visOf("right");
+  if (side === "auto") side = visR >= visL ? "right" : "left";
+  const I = LM[side];
+  const P = (f, k) => f.L[I[k]];
+  // Fahrtrichtung
+  const facing = Math.sign(median(valid.map(f => P(f, "sh").x - P(f, "hip").x))) || 1;
+  // Zeitreihen
+  const S = { t: [], knee: [], hip: [], back: [], shoulder: [], elbow: [], ankle: [], px: [], py: [], kx: [] };
+  valid.forEach(f => {
+    const sh = P(f, "sh"), el = P(f, "el"), wr = P(f, "wr"), hp = P(f, "hip"), kn = P(f, "kn"), an = P(f, "an"), toe = P(f, "toe");
+    const ped = { x: (an.x + toe.x) / 2, y: (an.y + toe.y) / 2 };
+    S.t.push(f.t);
+    S.knee.push(ang(hp, kn, an));
+    S.hip.push(ang(sh, hp, kn));
+    S.back.push(deg(Math.atan2(hp.y - sh.y, Math.abs(sh.x - hp.x))));
+    S.shoulder.push(ang(hp, sh, el));
+    S.elbow.push(ang(sh, el, wr));
+    S.ankle.push(ang(kn, an, toe));
+    S.px.push(ped.x); S.py.push(ped.y); S.kx.push(kn.x);
+  });
+  for (const k of ["knee", "hip", "back", "shoulder", "elbow", "ankle", "px", "py", "kx"]) S[k] = smooth(S[k], 1);
+  // Kurbelzyklus
+  const per = period(S.py, fps);
+  const w = Math.max(2, Math.round(per * 0.35)), h = Math.max(1, Math.round(per * 0.15));
+  const bdc = peaks(S.py, w);                       // Fuß ganz unten
+  const tdc = peaks(S.py.map(v => -v), w);          // Fuß ganz oben
+  const three = peaks(S.px.map(v => v * facing), w); // Fuß ganz vorne (3 Uhr)
+  if (bdc.length < 2) throw new Error("Keine gleichmäßige Tretbewegung erkannt. Mindestens 3–4 Kurbelumdrehungen filmen.");
+  const winMax = (a, i) => Math.max(...a.slice(Math.max(0, i - h), i + h + 1).filter(Number.isFinite));
+  const winMin = (a, i) => Math.min(...a.slice(Math.max(0, i - h), i + h + 1).filter(Number.isFinite));
+  const kneeMax = bdc.map(i => winMax(S.knee, i));
+  const kneeMin = tdc.map(i => winMin(S.knee, i));
+  const hipMin = tdc.map(i => winMin(S.hip, i));
+  // Maßstab: Pedalkreis ≈ Kurbellänge
+  const crank = +$("crank").value || 172.5;
+  const rPx = ((pct(S.px, .97) - pct(S.px, .03)) + (pct(S.py, .97) - pct(S.py, .03))) / 4;
+  const mmPerPx = crank / rPx;
+  const kops = three.map(i => (S.kx[i] - S.px[i]) * facing * mmPerPx);
+  // Segmentlängen
+  const seg = (a, b) => median(valid.map(f => dist(P(f, a), P(f, b)))) * mmPerPx;
+  const bdcTimes = bdc.map(i => S.t[i]);
+  const cad = bdcTimes.length > 1 ? 60 / median(bdcTimes.slice(1).map((t, i) => t - bdcTimes[i])) : NaN;
+  const ankleMinMax = bdc.map((i, k) => winMax(S.ankle, i));
+  return {
+    side, facing, fps, cycles: bdc.length, cadence: cad, mmPerPx, crank,
+    visibility: side === "right" ? visR : visL,
+    seg: { thigh: seg("hip", "kn"), shank: seg("kn", "an"), torso: seg("hip", "sh"), upperArm: seg("sh", "el"), foreArm: seg("el", "wr") },
+    m: {
+      kneeFlexBDC: { v: 180 - median(kneeMax), sd: sd(kneeMax), n: kneeMax.length, rawInterior: median(kneeMax) },
+      kneeTDC: { v: median(kneeMin), sd: sd(kneeMin), n: kneeMin.length },
+      hipTDC: { v: median(hipMin), sd: sd(hipMin), n: hipMin.length },
+      back: { v: median(S.back), sd: sd(S.back), n: S.back.length },
+      shoulder: { v: median(S.shoulder), sd: sd(S.shoulder), n: S.shoulder.length },
+      elbow: { v: median(S.elbow), sd: sd(S.elbow), n: S.elbow.length },
+      kops: { v: median(kops), sd: sd(kops), n: kops.length },
+    },
+    ankleRange: { min: pct(S.ankle, .05), max: pct(S.ankle, .95) },
+    series: { t: S.t, knee: S.knee, hip: S.hip },
+    keyIdx: {
+      bdc: bdc[Math.floor(bdc.length / 2)], tdc: tdc[Math.floor(tdc.length / 2)] ?? 0, three: three[Math.floor(three.length / 2)] ?? 0,
+      bdcAll: bdc,
+    },
+    validTimes: valid.map(f => f.t),
+  };
+}
+
+/* ---------- Bewertung & Empfehlungen ---------- */
+function status(v, r) {
+  if (!r || !Number.isFinite(v)) return "info";
+  if (v >= r[0] && v <= r[1]) return "ok";
+  const off = v < r[0] ? r[0] - v : v - r[1];
+  return off <= Math.max(3, (r[1] - r[0]) * 0.25) ? "warn" : "bad";
+}
+const mid = r => (r[0] + r[1]) / 2;
+const fmt = (v, d = 0) => Number.isFinite(v) ? v.toFixed(d) : "–";
+const r5 = v => Math.round(v);
+
+function recommendations(a) {
+  const P = PROFILES[a.profileKey], R = P.r, m = a.m, tt = P.bike === "tt", out = [];
+  const seg = a.seg;
+  // 1) Sattelhöhe
+  const kf = m.kneeFlexBDC.v, sK = status(kf, R.kneeFlexBDC);
+  if (sK !== "ok") {
+    const T = seg.thigh, Sh = seg.shank;
+    const d = th => Math.sqrt(T * T + Sh * Sh - 2 * T * Sh * Math.cos(rad(th)));
+    const delta = d(180 - mid(R.kneeFlexBDC)) - d(180 - kf);
+    const up = delta > 0;
+    out.push({ prio: sK === "bad" ? 1 : 2,
+      t: `Sattel ca. ${Math.abs(r5(delta))} mm ${up ? "höher" : "tiefer"}`,
+      why: `Kniebeugung unten ${fmt(kf)}° (Ziel ${R.kneeFlexBDC[0]}–${R.kneeFlexBDC[1]}°). ${up ? "Bein ist zu stark gebeugt – Leistung und Knie-Vorderseite leiden." : "Bein wird zu stark gestreckt – Becken kippelt, Gefahr für Kniekehle/Achillessehne."}${Math.abs(delta) > 8 ? " In 2–3 Schritten anpassen." : ""}` });
+  }
+  // 2) Kniewinkel oben
+  const sT = status(m.kneeTDC.v, R.kneeTDC);
+  if (sT !== "ok" && m.kneeTDC.v < R.kneeTDC[0]) {
+    out.push({ prio: 2, t: "Knie oben stark gestaucht", why: `Kniewinkel oben ${fmt(m.kneeTDC.v)}° (Ziel ≥ ${R.kneeTDC[0]}°). Nach der Sattelhöhe prüfen; bleibt es so, kann eine kürzere Kurbel (z. B. ${a.crank - 5} mm) Hüfte und Knie entlasten.` });
+  }
+  // 3) Sattel vor/zurück (nur Rennrad)
+  if (!tt && R.kops) {
+    const s = status(m.kops.v, R.kops);
+    if (s !== "ok") {
+      const delta = mid(R.kops) - m.kops.v; // + = Knie nach vorn -> Sattel vor
+      out.push({ prio: s === "bad" ? 1 : 2,
+        t: `Sattel ca. ${Math.abs(r5(delta))} mm ${delta > 0 ? "nach vorn" : "nach hinten"}`,
+        why: `Knie steht bei 3 Uhr ${fmt(Math.abs(m.kops.v))} mm ${m.kops.v >= 0 ? "vor" : "hinter"} der Pedalachse (Ziel ${R.kops[0]} bis +${R.kops[1]} mm). Danach Sattelhöhe neu messen – Verschieben ändert die effektive Höhe um ca. ⅓ des Weges.` });
+    }
+  }
+  // 4) Front: Stack über Rückenwinkel
+  const sB = status(m.back.v, R.back);
+  let frontStack = 0;
+  if (sB !== "ok") {
+    frontStack = seg.torso * (Math.sin(rad(mid(R.back))) - Math.sin(rad(m.back.v)));
+    out.push({ prio: sB === "bad" ? 1 : 2,
+      t: tt ? `Armpads ca. ${Math.abs(r5(frontStack))} mm ${frontStack > 0 ? "höher" : "tiefer"}` : `Lenker ca. ${Math.abs(r5(frontStack))} mm ${frontStack > 0 ? "höher (Spacer drunter / Vorbau steiler)" : "tiefer (Spacer raus / Vorbau flacher)"}`,
+      why: `Rückenwinkel ${fmt(m.back.v)}° (Ziel ${R.back[0]}–${R.back[1]}°). ${frontStack > 0 ? "Position zu tief für das gewählte Profil – kostet auf Dauer mehr Watt als sie aerodynamisch bringt." : (tt ? "Da ist noch Aero-Potenzial drin." : "Du sitzt sehr aufrecht – tiefer bringt Aero-Vorteil.")}` });
+  }
+  // 5) Reach über Schulterwinkel
+  const sS = status(m.shoulder.v, R.shoulder);
+  if (sS !== "ok") {
+    const delta = seg.upperArm * rad(mid(R.shoulder) - m.shoulder.v);
+    out.push({ prio: sS === "bad" ? 1 : 2,
+      t: tt ? `Armpads/Extensions ca. ${Math.abs(r5(delta))} mm ${delta > 0 ? "weiter nach vorn" : "weiter zurück"}` : `Reach ca. ${Math.abs(r5(delta))} mm ${delta > 0 ? "länger (längerer Vorbau)" : "kürzer (kürzerer Vorbau)"}`,
+      why: `Schulterwinkel ${fmt(m.shoulder.v)}° (Ziel ${R.shoulder[0]}–${R.shoulder[1]}°). ${delta > 0 ? "Du sitzt zusammengeschoben." : "Du bist zu gestreckt – Last auf Nacken und Schultern."}${tt ? " Ellbogen sollten etwa unter bis leicht vor der Schulter liegen." : ""}` });
+  }
+  // 6) Ellbogen
+  const sE = status(m.elbow.v, R.elbow);
+  if (sE !== "ok") {
+    const hi = m.elbow.v > R.elbow[1];
+    out.push({ prio: 2, t: hi ? "Arme zu gestreckt" : "Arme zu stark gebeugt",
+      why: `Ellbogenwinkel ${fmt(m.elbow.v)}° (Ziel ${R.elbow[0]}–${R.elbow[1]}°). ${tt ? (hi ? "Extensions zu lang/zu tief – oder Pads zu weit hinten." : "Extensions näher ran oder Pads nach vorn.") : (hi ? "Ellbogen locker beugen; bleibt es so, Reach kürzen." : "Reach eher zu kurz – passt zum Schulterwinkel oben.")}` });
+  }
+  // 7) Hüfte oben
+  const sH = status(m.hipTDC.v, R.hipTDC);
+  if (sH !== "ok" && m.hipTDC.v < R.hipTDC[0]) {
+    out.push({ prio: sH === "bad" ? 1 : 2, t: "Hüftwinkel oben zu geschlossen",
+      why: `Hüftwinkel oben ${fmt(m.hipTDC.v)}° (Ziel ≥ ${R.hipTDC[0]}°). ${tt ? "Optionen: Sattel weiter nach vorn (Tri-Sattel, Sitzposition vorne auf der Nase), Pads höher oder kürzere Kurbel." : "Optionen: Lenker höher, Reach kürzer oder kürzere Kurbel."} Wichtig, damit du nach dem Rad noch gut laufen kannst.` });
+  }
+  out.forEach(r => { const mm = r.t.match(/ca\. (\d+) mm/); if (mm && +mm[1] > 30) r.why += " ⚠️ Ungewöhnlich großer Wert – erst Kameraposition (exakt seitlich, nicht schräg?) und Kurbellänge prüfen, dann nur schrittweise ändern."; });
+  if (!out.length) out.push({ prio: 0, t: "Position passt 👍", why: "Alle Kernwerte liegen im Zielbereich deines Profils. Nur bei Beschwerden nachjustieren." });
+  out.sort((x, y) => (x.prio || 9) - (y.prio || 9));
+  return out;
+}
+
+/* ---------- Rendering ---------- */
+async function renderResults(a, withShots) {
+  const P = PROFILES[a.profileKey], R = P.r;
+  $("results").classList.remove("hidden");
+  $("resTitle").textContent = (P.bike === "tt" ? "🏁 " : "🚴 ") + P.name;
+  $("resMeta").textContent = `${a.cycles} Umdrehungen · Trittfrequenz ~${fmt(a.cadence)} U/min · Seite: ${a.side === "right" ? "rechts" : "links"} · Erkennungsqualität ${fmt(a.visibility * 100)} % · Maßstab ${fmt(a.mmPerPx, 2)} mm/px (aus Kurbellänge ${a.crank} mm)`;
+  const keys = ["kneeFlexBDC", "kneeTDC", "hipTDC", "back", "shoulder", "elbow"].concat(R.kops ? ["kops"] : []);
+  $("kpis").innerHTML = keys.map(k => {
+    const v = a.m[k].v, s = status(v, R[k]);
+    return `<div class="kpi ${s}"><div class="n">${METRIC_INFO[k].n}</div><div class="v">${fmt(v)}${METRIC_INFO[k].u}</div><div class="r">Ziel ${R[k] ? R[k][0] + "–" + R[k][1] + METRIC_INFO[k].u : "–"}</div></div>`;
+  }).join("");
+  $("recs").innerHTML = recommendations(a).map(r =>
+    `<li class="${r.prio === 0 ? "good" : "prio" + r.prio}"><b>${r.t}</b><div class="why">${r.why}</div></li>`).join("");
+  const rows = keys.map(k => {
+    const s = status(a.m[k].v, R[k]);
+    const lbl = { ok: "im Ziel", warn: "knapp daneben", bad: "außerhalb", info: "Info" }[s];
+    return `<tr><td><b>${METRIC_INFO[k].n}</b><div class="sub">${METRIC_INFO[k].d}</div></td><td>${fmt(a.m[k].v, 1)}${METRIC_INFO[k].u}<div class="sub">± ${fmt(a.m[k].sd, 1)} (n=${a.m[k].n})</div></td><td>${R[k] ? R[k][0] + "–" + R[k][1] + METRIC_INFO[k].u : "–"}</td><td><span class="tag ${s}">${lbl}</span></td></tr>`;
+  });
+  rows.push(`<tr><td><b>Fußgelenk (Range)</b><div class="sub">Knie–Knöchel–Fußspitze; große Spanne = viel „Ankling“</div></td><td>${fmt(a.ankleRange.min)}–${fmt(a.ankleRange.max)}°</td><td>–</td><td><span class="tag info">Info</span></td></tr>`);
+  rows.push(`<tr><td><b>Segmentlängen</b><div class="sub">geschätzt aus dem Video</div></td><td colspan="3">Oberschenkel ${fmt(a.seg.thigh)} mm · Unterschenkel ${fmt(a.seg.shank)} mm · Rumpf ${fmt(a.seg.torso)} mm · Oberarm ${fmt(a.seg.upperArm)} mm</td></tr>`);
+  if (P.bike === "tt") rows.push(`<tr><td><b>Knie über Pedal</b></td><td>${fmt(a.m.kops.v)} mm</td><td>–</td><td><span class="tag info">beim TT nicht bewertet</span></td></tr>`);
+  $("table").innerHTML = `<tr><th>Messwert</th><th>Ist</th><th>Ziel</th><th>Status</th></tr>` + rows.join("");
+  drawChart(a);
+  if (withShots && frames.length) await makeShots(a);
+  renderHistory();
+}
+
+const COLORS = { line: "#e4572e", joint: "#ffffff", txt: "#ffffff" };
+function drawPose(f, label, ctx = octx, clear = true) {
+  if (clear) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  if (!f || !f.L) return;
+  const side = analysis?.side || ($("side").value === "left" ? "left" : "right");
+  const I = LM[side], p = k => f.L[I[k]];
+  const sc = ctx.canvas.width / 900;
+  ctx.lineWidth = Math.max(3, 5 * sc); ctx.strokeStyle = COLORS.line; ctx.lineCap = "round";
+  const chain = [["toe", "an"], ["he", "an"], ["an", "kn"], ["kn", "hip"], ["hip", "sh"], ["sh", "el"], ["el", "wr"], ["sh", "ear"]];
+  chain.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(p(a).x, p(a).y); ctx.lineTo(p(b).x, p(b).y); ctx.stroke(); });
+  ctx.fillStyle = COLORS.joint;
+  ["toe", "an", "kn", "hip", "sh", "el", "wr"].forEach(k => { ctx.beginPath(); ctx.arc(p(k).x, p(k).y, Math.max(4, 7 * sc), 0, 7); ctx.fill(); });
+  const tag = (k, txt) => {
+    ctx.font = `bold ${Math.max(14, 26 * sc)}px system-ui`; const w = ctx.measureText(txt).width;
+    const x = p(k).x + 12 * sc, y = p(k).y - 12 * sc;
+    ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(x - 6, y - 26 * sc, w + 12, 34 * sc);
+    ctx.fillStyle = COLORS.txt; ctx.fillText(txt, x, y);
+  };
+  tag("kn", fmt(ang(p("hip"), p("kn"), p("an"))) + "°");
+  tag("hip", fmt(ang(p("sh"), p("hip"), p("kn"))) + "°");
+  tag("el", fmt(ang(p("sh"), p("el"), p("wr"))) + "°");
+  tag("sh", fmt(ang(p("hip"), p("sh"), p("el"))) + "°");
+  if (label) { ctx.font = `bold ${Math.max(16, 30 * sc)}px system-ui`; ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(0, 0, ctx.measureText(label).width + 24, 44 * sc); ctx.fillStyle = "#fff"; ctx.fillText(label, 12, 32 * sc); }
+}
+function nearestFrame(t) {
+  let best = null, bd = 1e9;
+  for (const f of frames) { const d = Math.abs(f.t - t); if (d < bd && f.L) { bd = d; best = f; } }
+  return bd < 0.08 ? best : null;
+}
+video.addEventListener("timeupdate", () => { if (frames.length) drawPose(nearestFrame(video.currentTime)); });
+video.addEventListener("seeked", () => { if (frames.length && analysis) drawPose(nearestFrame(video.currentTime)); });
+
+async function makeShots(a) {
+  const c = document.createElement("canvas"); c.width = video.videoWidth; c.height = video.videoHeight;
+  const ctx = c.getContext("2d");
+  const items = [["Unterer Totpunkt – Sattelhöhe", a.keyIdx.bdc], ["Oberer Totpunkt – Hüfte/Knie", a.keyIdx.tdc], ["3 Uhr – Knie über Pedal", a.keyIdx.three]];
+  const html = [];
+  for (const [lbl, idx] of items) {
+    const t = a.validTimes[idx]; if (t == null) continue;
+    await seek(t);
+    ctx.drawImage(video, 0, 0, c.width, c.height);
+    const f = nearestFrame(t);
+    drawPose(f, lbl, ctx, false);
+    if (lbl.startsWith("3 Uhr") && f) {
+      const I = LM[a.side], kn = f.L[I.kn];
+      ctx.setLineDash([12, 10]); ctx.strokeStyle = "#ffd400"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(kn.x, kn.y); ctx.lineTo(kn.x, c.height); ctx.stroke(); ctx.setLineDash([]);
+    }
+    html.push(`<figure><img src="${c.toDataURL("image/jpeg", .82)}" alt="${lbl}"><figcaption>${lbl} · t=${t.toFixed(2)} s</figcaption></figure>`);
+  }
+  $("shots").innerHTML = html.join("");
+  drawPose(nearestFrame(video.currentTime));
+}
+
+function drawChart(a) {
+  const cv = $("chart"), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext("2d"); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, W, H);
+  const cs = getComputedStyle(document.documentElement);
+  const muted = cs.getPropertyValue("--muted").trim(), line = cs.getPropertyValue("--line").trim();
+  const { t, knee, hip } = a.series; if (!t.length) return;
+  const pad = { l: 36, r: 8, t: 8, b: 22 };
+  const all = knee.concat(hip).filter(Number.isFinite);
+  const y0 = Math.floor(Math.min(...all) / 10) * 10, y1 = Math.ceil(Math.max(...all) / 10) * 10;
+  const X = v => pad.l + (v - t[0]) / (t[t.length - 1] - t[0] || 1) * (W - pad.l - pad.r);
+  const Y = v => pad.t + (1 - (v - y0) / (y1 - y0 || 1)) * (H - pad.t - pad.b);
+  ctx.font = "11px system-ui"; ctx.fillStyle = muted; ctx.strokeStyle = line; ctx.lineWidth = 1;
+  for (let v = y0; v <= y1; v += 20) { ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(W - pad.r, Y(v)); ctx.stroke(); ctx.fillText(v + "°", 4, Y(v) + 4); }
+  ctx.fillText(t[0].toFixed(1) + " s", pad.l, H - 6); const e = t[t.length - 1].toFixed(1) + " s"; ctx.fillText(e, W - pad.r - ctx.measureText(e).width, H - 6);
+  const plot = (arr, col) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); arr.forEach((v, i) => { if (!Number.isFinite(v)) return; i ? ctx.lineTo(X(t[i]), Y(v)) : ctx.moveTo(X(t[i]), Y(v)); }); ctx.stroke(); };
+  plot(knee, "#e4572e"); plot(hip, "#3b82f6");
+  ctx.fillStyle = "#e4572e";
+  a.keyIdx.bdcAll.forEach(i => { ctx.beginPath(); ctx.arc(X(t[i]), Y(knee[i]), 3.5, 0, 7); ctx.fill(); });
+}
+window.addEventListener("resize", () => analysis && drawChart(analysis));
+
+/* ---------- Verlauf / Vergleich ---------- */
+function loadHist() { try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); } catch { return []; } }
+function storeHist(h) { try { localStorage.setItem(STORE_KEY, JSON.stringify(h.slice(-40))); } catch {} }
+function slim(a) { const { series, keyIdx, validTimes, ...rest } = a; return rest; }
+function saveHistory(a) { const h = loadHist(); h.push(slim(a)); storeHist(h); renderHistory(); }
+function renderHistory() {
+  const h = loadHist();
+  const last = b => [...h].reverse().find(x => PROFILES[x.profileKey]?.bike === b);
+  const road = last("road"), tt = last("tt");
+  const keys = ["kneeFlexBDC", "kneeTDC", "hipTDC", "back", "shoulder", "elbow"];
+  $("cmp").innerHTML = `<tr><th>Messwert</th><th>Rennrad</th><th>Zeitfahrer</th><th>Δ</th></tr>` + keys.map(k => {
+    const a = road?.m[k]?.v, b = tt?.m[k]?.v;
+    return `<tr><td>${METRIC_INFO[k].n}</td><td>${fmt(a)}${a != null ? "°" : ""}</td><td>${fmt(b)}${b != null ? "°" : ""}</td><td>${Number.isFinite(a) && Number.isFinite(b) ? (b - a > 0 ? "+" : "") + fmt(b - a) + "°" : "–"}</td></tr>`;
+  }).join("");
+  let note = "";
+  if (road && tt) {
+    const dk = Math.abs(road.m.kneeFlexBDC.v - tt.m.kneeFlexBDC.v);
+    const dh = road.m.hipTDC.v - tt.m.hipTDC.v;
+    note = dk > 3 ? `⚠️ Die Kniestreckung unterscheidet sich um ${fmt(dk)}° – auf beiden Rädern sollte sie ähnlich sein (±3°), sonst arbeitet die Muskulatur jeweils anders. ` : "✅ Kniestreckung auf beiden Rädern ähnlich. ";
+    note += dh > 10 ? `Hüftwinkel am Zeitfahrer ${fmt(dh)}° geschlossener als am Rennrad – Sattel am TT ggf. weiter nach vorn, damit die Hüfte offen bleibt.` : "Hüftwinkel zwischen beiden Rädern im üblichen Rahmen.";
+  } else note = "Analysiere beide Räder, um sie hier zu vergleichen.";
+  $("cmpNote").textContent = note;
+  $("hist").innerHTML = h.length ? `<tr><th>Datum</th><th>Rad / Profil</th><th>Knie unten</th><th>Rücken</th><th>Hüfte oben</th><th>U/min</th></tr>` +
+    [...h].reverse().map(x => `<tr><td>${new Date(x.date).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}</td><td>${PROFILES[x.profileKey]?.name || x.profileKey}</td><td>${fmt(x.m.kneeFlexBDC.v)}°</td><td>${fmt(x.m.back.v)}°</td><td>${fmt(x.m.hipTDC.v)}°</td><td>${fmt(x.cadence)}</td></tr>`).join("")
+    : `<tr><td class="sub">Noch keine Analysen gespeichert.</td></tr>`;
+}
+$("clearBtn").onclick = () => { if (confirm("Gesamten Verlauf löschen?")) { storeHist([]); renderHistory(); } };
+$("jsonBtn").onclick = () => {
+  if (!analysis) return;
+  const blob = new Blob([JSON.stringify(slim(analysis), null, 2)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `bikefit_${analysis.bike}_${analysis.date.slice(0, 10)}.json`; a.click();
+};
+$("importFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text()); const arr = Array.isArray(d) ? d : [d];
+    const h = loadHist(); arr.forEach(x => x.m && x.profileKey && h.push(x)); storeHist(h); renderHistory();
+  } catch { alert("Datei konnte nicht gelesen werden."); }
+};
+$("printBtn").onclick = () => window.print();
+renderHistory();
+</script>
+</body>
+</html>
