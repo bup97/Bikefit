@@ -91,6 +91,23 @@ summary{cursor:pointer;font-weight:600}
 .checks li .i{width:22px;flex:none;text-align:center;font-weight:800}
 .checks li.ok .i{color:var(--ok)}.checks li.bad .i{color:var(--bad)}.checks li.na .i{color:#9aa3b2}
 .checks li small{display:block;color:#9aa3b2;font-size:12px}
+.switch{display:flex;align-items:center;gap:12px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink);font-weight:600;margin:0}
+.switch input{appearance:none;width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;cursor:pointer;flex:none;transition:background .15s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch input:checked{background:var(--accent)}.switch input:checked::after{left:21px}
+.pro{display:inline-block;background:var(--accent);color:#fff;font-size:11px;font-weight:800;padding:1px 7px;border-radius:6px;letter-spacing:.04em;vertical-align:middle}
+.proBox{border:1px dashed var(--accent);border-radius:12px;padding:12px;margin-top:12px}
+.pair{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.pair .qr{background:#fff;padding:8px;border-radius:10px;width:190px;height:190px;flex:none}
+.pair .qr svg{width:100%;height:100%;display:block}
+.pair .code{font:800 30px ui-monospace,Menlo,monospace;letter-spacing:.08em}
+.cam{position:fixed;inset:0;z-index:60;background:#000;color:#fff;display:flex;flex-direction:column}
+.cam video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000}
+.cam .camBanner{position:absolute;top:max(14px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);padding:8px 16px;border-radius:20px;font:700 17px system-ui;max-width:92%;text-align:center}
+.cam .camBanner.good{background:var(--ok)}
+.cam .camPanel{padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:#14161b}
+.cam input{width:100%;padding:12px;border-radius:10px;border:1px solid #2a2f38;background:#0f1115;color:#fff;font:700 24px ui-monospace,Menlo,monospace;letter-spacing:.2em;text-align:center}
+.cam .sub{color:#9aa3b2}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
 @media print{
   .noprint{display:none!important}
@@ -142,6 +159,9 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
         </select>
       </div>
     </div>
+    <div style="margin-top:14px">
+      <label class="switch"><input type="checkbox" id="proToggle"> <span><span class="pro">PRO</span> Pro-Modus – Handy als Kamera am Laptop, Kamera-Auswahl</span></label>
+    </div>
     <details>
       <summary>So filmst du richtig</summary>
       <ul class="sub">
@@ -164,6 +184,34 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
       <div><label for="recCountdown">Vorlauf (s)</label><input type="number" id="recCountdown" value="15" min="3" max="60"></div>
       <div><label for="recDur">Aufnahmedauer (s)</label><input type="number" id="recDur" value="30" min="10" max="90"></div>
       <div><label for="voice">Sprachansagen</label><select id="voice"><option value="1">An</option><option value="0">Aus</option></select></div>
+    </div>
+    <div id="proBox" class="proBox hidden">
+      <b><span class="pro">PRO</span> Kamera-Quelle</b>
+      <div class="grid" style="margin-top:10px">
+        <div><label for="camSel">Kamera für „Live-Ausrichtung“</label>
+          <select id="camSel"><option value="">Standard (Rückkamera)</option></select></div>
+        <div style="align-self:end"><button class="btn ghost" id="camScan" style="width:100%">Kameras suchen</button></div>
+      </div>
+      <div class="sub" style="margin-top:6px">Am Mac erscheint hier auch die <b>iPhone-Kamera</b> (Continuity-Kamera: gleiche Apple-ID, WLAN & Bluetooth an).</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="pairBtn">📱 Handy als Kamera koppeln</button>
+        <button class="btn ghost" id="beCamBtn">Dieses Gerät ist die Kamera</button>
+      </div>
+      <div id="pairBox" class="hidden">
+        <div class="pair">
+          <div class="qr" id="pairQr"></div>
+          <div>
+            <div class="sub">Code für das Handy</div>
+            <div class="code" id="pairCode">––– –––</div>
+            <div class="sub" id="pairStatus" style="max-width:340px"></div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn hidden" id="pairOpen">Live-Ansicht öffnen</button>
+              <button class="btn ghost" id="pairEnd">Kopplung beenden</button>
+            </div>
+          </div>
+        </div>
+        <div class="sub" style="margin-top:8px">Handy und Laptop im gleichen WLAN. Das Bild läuft direkt zwischen beiden Geräten; für den Verbindungsaufbau wird kurz ein öffentlicher Vermittlungsserver (PeerJS) genutzt.</div>
+      </div>
     </div>
     <div class="row" style="margin-top:12px">
       <button class="btn" id="liveBtn">📷 Live-Ausrichtung starten</button>
@@ -264,6 +312,23 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
       <ul class="checks" id="checks"></ul>
       <div class="sub" id="liveMsg"></div>
       <div class="sub" style="margin-top:8px">Tipp: Handy im Querformat aufs Stativ, Rad gerade auf der Rolle, du sitzt in Fahrposition. Die Aufnahme kannst du auch starten, wenn die Wasserwaage fehlt (z. B. am Laptop).</div>
+    </div>
+  </div>
+
+  <!-- PHONE CAMERA MODE (Pro) -->
+  <div id="camMode" class="cam hidden">
+    <video id="camVideo" playsinline muted autoplay></video>
+    <div id="camBanner" class="camBanner">📱 Kamera-Modus</div>
+    <div class="camPanel">
+      <div id="camSetup">
+        <div class="sub" style="margin-bottom:6px">6-stelliger Code vom Laptop</div>
+        <input id="camCode" inputmode="numeric" maxlength="7" placeholder="123456">
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="camStart" style="flex:1">Kamera starten & verbinden</button>
+        </div>
+      </div>
+      <div class="sub" id="camStatus" style="margin-top:8px">Handy und Laptop müssen im gleichen WLAN sein.</div>
+      <div class="row" style="margin-top:10px"><button class="btn ghost" id="camEnd" style="background:#232831;color:#fff">Kamera-Modus beenden</button></div>
     </div>
   </div>
 
@@ -415,19 +480,29 @@ function onOrient(e) {
   live.orient = { roll, pitch };
 }
 
-$("liveBtn").onclick = async () => {
-  try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission(); } catch {}
-  window.addEventListener("deviceorientation", onOrient);
+function localConstraints() {
+  const id = proOn() ? $("camSel").value : "";
+  const base = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } };
+  return { audio: false, video: id ? { deviceId: { exact: id }, ...base } : { facingMode: { ideal: "environment" }, ...base } };
+}
+$("liveBtn").onclick = () => openLive(() => navigator.mediaDevices.getUserMedia(localConstraints()));
+
+async function openLive(getStream, opts = {}) {
+  if (live.stream) return;
+  live.remote = !!opts.remote;
+  if (!live.remote) {
+    try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission(); } catch {}
+    window.addEventListener("deviceorientation", onOrient);
+  }
   $("liveModal").classList.remove("hidden"); document.body.style.overflow = "hidden";
   Object.assign(live, { okSince: 0, announced: false, orient: null, lastHint: performance.now() });
   $("liveMsg").textContent = "Starte Kamera …";
   try {
-    live.stream = await navigator.mediaDevices.getUserMedia({ audio: false,
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } });
+    live.stream = await getStream();
     lv.srcObject = live.stream; await lv.play();
     try { live.wake = await navigator.wakeLock?.request("screen"); } catch {}
     const s = live.stream.getVideoTracks()[0]?.getSettings?.() || {};
-    const camInfo = `Kamera: ${s.width || lv.videoWidth}×${s.height || lv.videoHeight}${s.frameRate ? " @ " + Math.round(s.frameRate) + " fps" : ""}`;
+    const camInfo = (live.remote ? "📱 Handy-Kamera: " : "Kamera: ") + `${s.width || lv.videoWidth}×${s.height || lv.videoHeight}${s.frameRate ? " @ " + Math.round(s.frameRate) + " fps" : ""}`;
     $("recBtn").disabled = false;
     live.lm = null; live.lmFailed = false;
     $("liveMsg").textContent = camInfo + " · Lade Pose-Modell …";
@@ -446,10 +521,12 @@ $("liveBtn").onclick = async () => {
       live.raf = requestAnimationFrame(tick);
     };
     tick();
+    if (!proOn() || live.remote) return;
+    refreshCams();
   } catch (e) {
     $("liveMsg").textContent = "⚠️ Kamera nicht verfügbar: " + (e.message || e) + " – Kamerazugriff erlauben und die Seite über https öffnen.";
   }
-};
+}
 
 function drawLive(L) {
   const W = lv.videoWidth, H = lv.videoHeight; if (!W) return;
@@ -531,6 +608,10 @@ function drawLive(L) {
   }
   if (now - live.lastList > 250) {
     live.lastList = now;
+    if (live.remote && host.conn?.open) {
+      const txt = busy ? ($("recBadge").textContent || $("liveBanner").textContent) : $("liveBanner").textContent;
+      try { host.conn.send({ banner: txt, perfect: perfect && !busy }); } catch {}
+    }
     $("checks").innerHTML = checks.map(x => `<li class="${x.ok === true ? "ok" : x.ok === false ? "bad" : "na"}"><span class="i">${x.ok === true ? "✓" : x.ok === false ? "✗" : "–"}</span><div>${x.label}${x.ok !== true ? `<small>${x.hint}</small>` : ""}</div></li>`).join("");
   }
 }
@@ -539,7 +620,9 @@ function resetRecUI() { $("recBadge").classList.add("hidden"); $("recBadge").cla
 function stopLive() {
   cancelAnimationFrame(live.raf); clearInterval(live.timer);
   if (live.rec && live.rec.state !== "inactive") { live.discard = true; live.rec.stop(); }
-  live.stream?.getTracks().forEach(t => t.stop()); live.stream = null; lv.srcObject = null;
+  if (!live.remote) live.stream?.getTracks().forEach(t => t.stop());
+  else { try { host.conn?.open && host.conn.send({ banner: "📱 Verbunden – Live-Ansicht am Laptop geschlossen", perfect: false }); } catch {} $("pairOpen").classList.toggle("hidden", !host.stream); }
+  live.stream = null; lv.srcObject = null; live.remote = false;
   try { live.wake?.release(); } catch {} live.wake = null;
   window.removeEventListener("deviceorientation", onOrient);
   live.countdown = false; live.recording = false;
@@ -604,6 +687,171 @@ function finishRecording(blob) {
   $("recLink").innerHTML = `Aufnahme übernommen (${(blob.size / 1e6).toFixed(1)} MB) · <a href="${url}" download="${name}">Video speichern</a>`;
   $("videoCard").scrollIntoView({ behavior: "smooth" });
 }
+
+/* ---------- PRO: Kamera-Auswahl & Handy als Kamera ---------- */
+const PEER_URL = "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js";
+const QR_URL = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
+const PEER_PREFIX = "bikefit-pro-";
+const PEER_OPTS = { debug: 0, config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] } };
+const host = { peer: null, call: null, conn: null, stream: null };
+const cam = { peer: null, call: null, conn: null, stream: null, timer: 0, wake: null };
+const proOn = () => $("proToggle").checked;
+function setPro(on) {
+  $("proToggle").checked = on; $("proBox").classList.toggle("hidden", !on);
+  try { localStorage.setItem("bikefit_pro", on ? "1" : "0"); } catch {}
+}
+$("proToggle").onchange = e => setPro(e.target.checked);
+try { setPro(localStorage.getItem("bikefit_pro") === "1"); } catch {}
+
+const loaded = {};
+function loadScript(src) {
+  return loaded[src] ||= new Promise((res, rej) => {
+    const el = document.createElement("script"); el.src = src; el.onload = res;
+    el.onerror = () => { delete loaded[src]; rej(new Error("Bibliothek nicht ladbar: " + src.split("/").pop())); };
+    document.head.appendChild(el);
+  });
+}
+const PeerCtor = () => window.Peer || window.peerjs?.Peer;
+// Mehr Bitrate fürs Video im WLAN
+function hiBitrate(sdp) {
+  const L = sdp.split("\r\n"); let inV = false;
+  for (let i = 0; i < L.length; i++) {
+    if (L[i].startsWith("m=")) inV = L[i].startsWith("m=video");
+    else if (inV && L[i].startsWith("c=")) { if (!L[i + 1]?.startsWith("b=")) L.splice(i + 1, 0, "b=AS:8000"); inV = false; }
+  }
+  return L.join("\r\n");
+}
+
+// Kamera-Auswahl (inkl. Continuity-Kamera am Mac)
+async function refreshCams() {
+  try {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+    const sel = $("camSel"), cur = sel.value;
+    sel.innerHTML = `<option value="">Standard (Rückkamera)</option>` + devs.map((d, i) =>
+      `<option value="${d.deviceId}">${(d.label || "Kamera " + (i + 1)).replace(/</g, "")}</option>`).join("");
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+    return devs.length;
+  } catch { return 0; }
+}
+$("camScan").onclick = async () => {
+  try { const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); s.getTracks().forEach(t => t.stop()); } catch {}
+  const n = await refreshCams();
+  $("camScan").textContent = n ? `${n} Kamera${n > 1 ? "s" : ""} gefunden` : "Keine Kamera gefunden";
+};
+
+// Laptop: Kopplung anbieten
+function pairStatus(t) { $("pairStatus").textContent = t; }
+$("pairBtn").onclick = async () => {
+  $("pairBox").classList.remove("hidden"); pairStatus("Starte Kopplung …");
+  try {
+    await Promise.all([loadScript(PEER_URL), loadScript(QR_URL)]);
+    endHost();
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const Peer = PeerCtor(); if (!Peer) throw new Error("PeerJS nicht geladen");
+    const peer = new Peer(PEER_PREFIX + code, PEER_OPTS); host.peer = peer;
+    peer.on("open", () => {
+      const url = location.origin + location.pathname + "#cam=" + code;
+      const qr = qrcode(0, "M"); qr.addData(url); qr.make();
+      $("pairQr").innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+      $("pairCode").textContent = code.replace(/(\d{3})(\d{3})/, "$1 $2");
+      pairStatus("QR-Code mit der iPhone-Kamera scannen (oder auf dem Handy „Dieses Gerät ist die Kamera“ wählen und den Code eingeben).");
+    });
+    peer.on("error", e => {
+      if (e.type === "unavailable-id") return $("pairBtn").click();
+      pairStatus("⚠️ Verbindungsfehler: " + (e.type || e.message));
+    });
+    peer.on("connection", conn => {
+      host.conn = conn;
+      conn.on("data", d => {
+        if (d?.orient && live.remote) live.orient = d.orient;
+        if (d?.hello) pairStatus("📱 Handy verbunden – warte auf Kamerabild …");
+      });
+      conn.on("close", () => pairStatus("Handy getrennt."));
+    });
+    peer.on("call", call => {
+      host.call = call;
+      call.answer(undefined, { sdpTransform: hiBitrate });
+      call.on("stream", stream => {
+        if (host.stream === stream) return;
+        host.stream = stream;
+        pairStatus("✓ Handy-Kamera verbunden. Ausrichtung, Ansagen und Aufnahme laufen hier am Laptop.");
+        $("pairOpen").classList.add("hidden");
+        if (live.stream && !live.remote) stopLive();
+        openLive(async () => stream, { remote: true });
+      });
+      call.on("close", () => {
+        host.stream = null; $("pairOpen").classList.add("hidden");
+        pairStatus("Verbindung zum Handy beendet.");
+        if (live.remote) stopLive();
+      });
+    });
+  } catch (e) { pairStatus("⚠️ Kopplung nicht möglich: " + (e.message || e)); }
+};
+$("pairOpen").onclick = () => { if (host.stream) openLive(async () => host.stream, { remote: true }); };
+function endHost() {
+  try { host.call?.close(); } catch {} try { host.peer?.destroy(); } catch {}
+  Object.assign(host, { peer: null, call: null, conn: null, stream: null });
+}
+$("pairEnd").onclick = () => {
+  if (live.remote) stopLive();
+  endHost(); $("pairBox").classList.add("hidden"); $("pairOpen").classList.add("hidden");
+};
+
+// Handy: Kamera-Modus
+function camStatus(t) { $("camStatus").textContent = t; }
+function enterCamMode(code) {
+  $("camMode").classList.remove("hidden"); document.body.style.overflow = "hidden";
+  if (code) $("camCode").value = code;
+}
+$("beCamBtn").onclick = () => enterCamMode("");
+$("camStart").onclick = async () => {
+  const code = $("camCode").value.replace(/\D/g, "");
+  if (code.length !== 6) return camStatus("Bitte den 6-stelligen Code vom Laptop eingeben.");
+  try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission(); } catch {}
+  camStatus("Starte Kamera …");
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } });
+    $("camVideo").srcObject = cam.stream; await $("camVideo").play();
+    try { cam.wake = await navigator.wakeLock?.request("screen"); } catch {}
+    window.addEventListener("deviceorientation", onOrient);
+    camStatus("Verbinde mit Laptop …");
+    await loadScript(PEER_URL);
+    const Peer = PeerCtor(); if (!Peer) throw new Error("PeerJS nicht geladen");
+    const peer = new Peer(undefined, PEER_OPTS); cam.peer = peer;
+    peer.on("open", () => {
+      const target = PEER_PREFIX + code;
+      const conn = peer.connect(target, { reliable: true }); cam.conn = conn;
+      conn.on("open", () => conn.send({ hello: true }));
+      conn.on("data", d => {
+        if (d?.banner != null) { $("camBanner").textContent = d.banner; $("camBanner").classList.toggle("good", !!d.perfect); }
+      });
+      conn.on("close", () => camStatus("Verbindung beendet."));
+      const call = peer.call(target, cam.stream, { sdpTransform: hiBitrate }); cam.call = call;
+      call.on("close", () => camStatus("Verbindung beendet. Zum Neuverbinden Code erneut eingeben."));
+      $("camSetup").classList.add("hidden");
+      $("camBanner").textContent = "✓ Verbunden";
+      camStatus("✓ Verbunden – Bild läuft am Laptop. Handy quer aufs Stativ, Hinweise erscheinen oben.");
+      clearInterval(cam.timer);
+      cam.timer = setInterval(() => { if (cam.conn?.open && live.orient) try { cam.conn.send({ orient: live.orient }); } catch {} }, 150);
+    });
+    peer.on("error", e => {
+      camStatus("⚠️ " + (e.type === "peer-unavailable" ? "Code nicht gefunden – ist die Kopplung am Laptop noch offen?" : "Verbindungsfehler: " + (e.type || e.message)));
+      $("camSetup").classList.remove("hidden");
+    });
+  } catch (e) { camStatus("⚠️ " + (e.message || e)); }
+};
+$("camEnd").onclick = () => {
+  clearInterval(cam.timer); window.removeEventListener("deviceorientation", onOrient);
+  try { cam.call?.close(); } catch {} try { cam.peer?.destroy(); } catch {}
+  cam.stream?.getTracks().forEach(t => t.stop());
+  try { cam.wake?.release(); } catch {}
+  Object.assign(cam, { peer: null, call: null, conn: null, stream: null, wake: null });
+  $("camVideo").srcObject = null; $("camSetup").classList.remove("hidden");
+  $("camMode").classList.add("hidden"); document.body.style.overflow = "";
+  if (location.hash.includes("cam=")) history.replaceState(null, "", location.pathname);
+};
+{ const m = location.hash.match(/cam=(\d{6})/); if (m) enterCamMode(m[1]); }
 
 /* ---------- Analyse ---------- */
 $("cancelBtn").onclick = () => { cancel = true; };

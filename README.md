@@ -33,6 +33,21 @@ Mit **„Live-Ausrichtung starten“** öffnet sich das Kamerabild mit Drittel-L
 
 Sind alle Punkte grün, wird der Rahmen grün und eine Sprachansage meldet „Perfekt ausgerichtet“ (Hinweise zum Korrigieren kommen ebenfalls per Sprache – praktisch, wenn du schon auf dem Rad sitzt). Danach startet die Aufnahme mit Countdown direkt in der App und das Video wird automatisch in die Analyse übernommen. Kamera-Zugriff braucht https – GitHub Pages passt.
 
+## PRO-Modus: Handy als Kamera am Laptop
+
+Im Setup den Schalter **Pro-Modus** aktivieren (wird gemerkt). Dann gibt es zwei zusätzliche Wege:
+
+**1. Handy koppeln (WLAN, QR-Code)**
+1. Am Laptop: **„Handy als Kamera koppeln“** → QR-Code und 6-stelliger Code erscheinen.
+2. Mit der iPhone-Kamera den QR-Code scannen (oder auf dem Handy die Seite öffnen → Pro-Modus → „Dieses Gerät ist die Kamera“ → Code eingeben).
+3. Auf dem Handy **„Kamera starten & verbinden“** tippen, Kamera- und Bewegungszugriff erlauben.
+4. Das Kamerabild läuft live auf dem Laptop: Ausrichtung, Checkliste, Sprachansagen (über die Laptop-Lautsprecher) und Aufnahme passieren dort. Die Wasserwaage nutzt den Lagesensor des Handys, Hinweise erscheinen zusätzlich oben auf dem Handy-Display.
+
+Das Video läuft direkt zwischen den Geräten (WebRTC). Für den Verbindungsaufbau wird kurz der öffentliche PeerJS-Vermittlungsserver genutzt. In Firmen- oder Gast-WLANs mit Client-Isolation kann die Verbindung blockiert sein.
+
+**2. Kamera-Auswahl / Continuity-Kamera (Mac)**
+„Kameras suchen“ listet alle Kameras. Am Mac erscheint dort die **iPhone-Kamera** (gleiche Apple-ID, WLAN & Bluetooth an, iPhone in der Nähe) – auswählen und „Live-Ausrichtung starten“.
+
 ## So filmst du richtig
 
 - Rad auf der Rolle, Kamera **exakt seitlich** auf Hüfthöhe, ca. 3 m Abstand, Querformat, Stativ
