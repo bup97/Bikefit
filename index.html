@@ -73,6 +73,23 @@ details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
 summary{cursor:pointer;font-weight:600}
 .hidden{display:none!important}
 .note{font-size:13px;color:var(--muted);background:var(--chip);border-radius:10px;padding:10px 12px;margin-top:12px}
+.live{position:fixed;inset:0;z-index:50;background:#0b0c0f;color:#e9ecf1;display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr;overflow:auto}
+@media (min-width:900px),(orientation:landscape) and (min-width:600px){.live{grid-template-columns:1fr 320px;grid-template-rows:1fr}}
+.liveStage{position:relative;display:flex;align-items:center;justify-content:center;background:#000;min-height:0}
+.liveStage video{max-width:100%;max-height:100vh;display:block}
+.liveStage canvas{position:absolute;pointer-events:none}
+.liveBanner{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);padding:6px 14px;border-radius:20px;font-weight:700;font-size:15px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
+.liveBanner.good{background:var(--ok);color:#fff}
+.recBadge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 18vmin system-ui;color:#fff;text-shadow:0 2px 20px rgba(0,0,0,.8);pointer-events:none}
+.recBadge.rec{inset:auto;top:50px;right:12px;font:700 16px system-ui;background:var(--bad);padding:4px 12px;border-radius:20px}
+.livePanel{padding:14px 16px;background:#14161b;overflow:auto}
+.livePanel .btn.ghost{background:#232831;color:#e9ecf1}
+.livePanel .sub{color:#9aa3b2}
+.checks{list-style:none;padding:0;margin:12px 0}
+.checks li{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #2a2f38;font-size:14px}
+.checks li .i{width:22px;flex:none;text-align:center;font-weight:800}
+.checks li.ok .i{color:var(--ok)}.checks li.bad .i{color:var(--bad)}.checks li.na .i{color:#9aa3b2}
+.checks li small{display:block;color:#9aa3b2;font-size:12px}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
 @media print{
   .noprint{display:none!important}
@@ -133,13 +150,28 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
         <li>Erst 5 Min. warmfahren, dann 20–30 s bei ~85–95 U/min und moderater Last filmen.</li>
         <li>Rennrad: Hände an den Hoods. Zeitfahrer: in Aeroposition auf den Extensions.</li>
         <li>Wenn möglich 60 fps – mehr Bilder pro Kurbelumdrehung = genauere Werte.</li>
+        <li>Am einfachsten: <b>Live-Ausrichtung</b> unten nutzen – die App sagt dir, wie du die Kamera verschieben musst, und nimmt direkt auf.</li>
       </ul>
     </details>
   </section>
 
-  <!-- VIDEO -->
+  <!-- LIVE CAMERA -->
   <section class="card noprint">
-    <h2>2 · Video laden & analysieren</h2>
+    <h2>2 · Kamera ausrichten & aufnehmen</h2>
+    <p class="sub" style="margin-top:-6px">Live-Bild mit Hilfslinien, Wasserwaage und Checkliste. Sobald alles grün ist, nimmst du direkt hier auf – das Video landet automatisch in der Analyse.</p>
+    <div class="grid">
+      <div><label for="recCountdown">Vorlauf (s)</label><input type="number" id="recCountdown" value="15" min="3" max="60"></div>
+      <div><label for="recDur">Aufnahmedauer (s)</label><input type="number" id="recDur" value="30" min="10" max="90"></div>
+      <div><label for="voice">Sprachansagen</label><select id="voice"><option value="1">An</option><option value="0">Aus</option></select></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="liveBtn">📷 Live-Ausrichtung starten</button>
+    </div>
+  </section>
+
+  <!-- VIDEO -->
+  <section class="card noprint" id="videoCard">
+    <h2>3 · Video laden & analysieren</h2>
     <input type="file" id="file" accept="video/*">
     <div class="stage hidden" id="stage">
       <video id="video" playsinline muted controls></video>
@@ -157,6 +189,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
     </div>
     <div class="progress" id="prog"><div></div></div>
     <div id="status"></div>
+    <div id="recLink" class="sub"></div>
   </section>
 
   <!-- RESULTS -->
@@ -210,6 +243,29 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
     </div>
   </section>
 
+  <!-- LIVE MODAL -->
+  <div id="liveModal" class="live hidden">
+    <div class="liveStage">
+      <video id="liveVideo" playsinline muted autoplay></video>
+      <canvas id="liveCanvas"></canvas>
+      <div id="liveBanner" class="liveBanner">Suche Fahrer …</div>
+      <div id="recBadge" class="recBadge hidden"></div>
+    </div>
+    <div class="livePanel">
+      <div class="row" style="justify-content:space-between">
+        <b>Ausrichtung</b>
+        <button class="btn ghost" id="liveClose">✕ Schließen</button>
+      </div>
+      <ul class="checks" id="checks"></ul>
+      <div class="sub" id="liveMsg"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="recBtn" disabled>⏺ Aufnahme starten</button>
+        <button class="btn ghost hidden" id="recStop">⏹ Stopp</button>
+      </div>
+      <div class="sub" style="margin-top:8px">Tipp: Handy im Querformat aufs Stativ, Rad gerade auf der Rolle, du sitzt in Fahrposition. Die Aufnahme kannst du auch starten, wenn die Wasserwaage fehlt (z. B. am Laptop).</div>
+    </div>
+  </div>
+
   <footer>
     BikeFit Analyzer · Pose-Erkennung mit MediaPipe · Keine Daten verlassen deinen Browser.<br>
     Richtwerte aus gängigen Fitting-Methoden – ersetzt kein professionelles Fitting.
@@ -217,7 +273,8 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
 </div>
 
 <script type="module">
-import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+// MediaPipe wird erst bei Bedarf geladen, damit die Oberfläche auch ohne Netz sofort funktioniert
+const MP_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 
 /* =========================================================
    ZIELBEREICHE – hier kannst du die Richtwerte anpassen
@@ -283,18 +340,33 @@ fillProfiles();
 /* ---------- Video ---------- */
 $("file").onchange = e => {
   const f = e.target.files[0]; if (!f) return;
-  video.src = URL.createObjectURL(f);
+  $("recLink").textContent = "";
+  loadVideo(URL.createObjectURL(f));
+};
+// Browser-Aufnahmen (WebM) haben oft keine Dauer im Header -> einmal ans Ende springen
+function fixDuration() {
+  return new Promise(res => {
+    if (Number.isFinite(video.duration)) return res();
+    const h = () => { if (Number.isFinite(video.duration)) { video.removeEventListener("durationchange", h); res(); } };
+    video.addEventListener("durationchange", h);
+    video.currentTime = 1e101;
+    setTimeout(() => { video.removeEventListener("durationchange", h); res(); }, 4000);
+  });
+}
+function loadVideo(url, startAt) {
+  video.src = url;
   $("stage").classList.remove("hidden");
   frames = []; analysis = null; $("results").classList.add("hidden");
-  video.onloadedmetadata = () => {
+  video.onloadedmetadata = async () => {
+    await fixDuration(); video.currentTime = 0;
     overlay.width = video.videoWidth; overlay.height = video.videoHeight;
     const d = video.duration;
-    $("tStart").value = d > 20 ? Math.min(3, d - 15).toFixed(1) : 0;
+    $("tStart").value = startAt != null ? Math.min(startAt, Math.max(0, d - 5)).toFixed(1) : (d > 20 ? Math.min(3, d - 15).toFixed(1) : 0);
     $("tDur").value = Math.max(3, Math.min(15, Math.floor(d - +$("tStart").value)));
     $("analyzeBtn").disabled = false;
     setStatus(`Video geladen: ${video.videoWidth}×${video.videoHeight}, ${d.toFixed(1)} s`);
   };
-};
+}
 function setStatus(t) { $("status").textContent = t; }
 function setProg(p) { $("prog").style.display = "block"; $("prog").firstElementChild.style.width = (p * 100).toFixed(1) + "%"; }
 
@@ -312,6 +384,7 @@ async function getLandmarker() {
   const m = $("model").value;
   if (landmarker && landmarkerModel === m) return landmarker;
   setStatus("Lade Pose-Modell … (einmalig, ein paar MB)");
+  const { PoseLandmarker, FilesetResolver } = await import(MP_URL);
   const vision = await FilesetResolver.forVisionTasks(WASM);
   const opts = d => ({ baseOptions: { modelAssetPath: MODEL_URL(m), delegate: d }, runningMode: "VIDEO", numPoses: 1,
     minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
@@ -319,6 +392,216 @@ async function getLandmarker() {
   catch { landmarker = await PoseLandmarker.createFromOptions(vision, opts("CPU")); }
   landmarkerModel = m;
   return landmarker;
+}
+
+/* ---------- Live-Ausrichtung & Aufnahme ---------- */
+const live = { stream: null, raf: 0, okSince: 0, announced: false, lastHint: 0, lastList: 0, orient: null,
+  rec: null, chunks: [], recording: false, countdown: false, discard: false, timer: 0, wake: null };
+const lv = $("liveVideo"), lc = $("liveCanvas"), lctx = lc.getContext("2d");
+const voiceOn = () => $("voice").value === "1";
+function speak(t) {
+  if (!voiceOn() || !("speechSynthesis" in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = "de-DE"; u.rate = 1.05; speechSynthesis.speak(u); } catch {}
+}
+function line(c, x1, y1, x2, y2) { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); }
+function onOrient(e) {
+  if (e.beta == null || e.gamma == null) return;
+  const a = (((screen.orientation?.angle ?? window.orientation ?? 0) % 360) + 360) % 360;
+  let roll, pitch;
+  if (a === 90) { roll = -e.beta; pitch = 90 - Math.abs(e.gamma); }
+  else if (a === 270) { roll = e.beta; pitch = 90 - Math.abs(e.gamma); }
+  else { roll = e.gamma; pitch = 90 - e.beta; }
+  live.orient = { roll, pitch };
+}
+
+$("liveBtn").onclick = async () => {
+  try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission(); } catch {}
+  window.addEventListener("deviceorientation", onOrient);
+  $("liveModal").classList.remove("hidden"); document.body.style.overflow = "hidden";
+  Object.assign(live, { okSince: 0, announced: false, orient: null, lastHint: performance.now() });
+  $("liveMsg").textContent = "Starte Kamera …";
+  try {
+    live.stream = await navigator.mediaDevices.getUserMedia({ audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } });
+    lv.srcObject = live.stream; await lv.play();
+    try { live.wake = await navigator.wakeLock?.request("screen"); } catch {}
+    const s = live.stream.getVideoTracks()[0]?.getSettings?.() || {};
+    const camInfo = `Kamera: ${s.width || lv.videoWidth}×${s.height || lv.videoHeight}${s.frameRate ? " @ " + Math.round(s.frameRate) + " fps" : ""}`;
+    $("recBtn").disabled = false;
+    live.lm = null; live.lmFailed = false;
+    $("liveMsg").textContent = camInfo + " · Lade Pose-Modell …";
+    getLandmarker().then(lm => { live.lm = lm; $("liveMsg").textContent = camInfo; })
+      .catch(err => { live.lmFailed = true; $("liveMsg").textContent = camInfo + " · ⚠️ Pose-Modell nicht geladen (" + (err.message || err) + ") – Hilfslinien und Aufnahme funktionieren trotzdem."; });
+    const tick = () => {
+      if (!live.stream) return;
+      if (lv.readyState >= 2) {
+        let L = null;
+        if (live.lm) {
+          tsCounter = Math.max(tsCounter + 1, performance.now());
+          try { L = live.lm.detectForVideo(lv, Math.round(tsCounter)).landmarks?.[0] || null; } catch {}
+        }
+        drawLive(L);
+      }
+      live.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch (e) {
+    $("liveMsg").textContent = "⚠️ Kamera nicht verfügbar: " + (e.message || e) + " – Kamerazugriff erlauben und die Seite über https öffnen.";
+  }
+};
+
+function drawLive(L) {
+  const W = lv.videoWidth, H = lv.videoHeight; if (!W) return;
+  if (lc.width !== W || lc.height !== H) { lc.width = W; lc.height = H; }
+  Object.assign(lc.style, { left: lv.offsetLeft + "px", top: lv.offsetTop + "px", width: lv.clientWidth + "px", height: lv.clientHeight + "px" });
+  const c = lctx, sc = W / 900;
+  c.clearRect(0, 0, W, H);
+  // Hilfslinien: Drittel + gelbes Fadenkreuz
+  c.strokeStyle = "rgba(255,255,255,.3)"; c.lineWidth = Math.max(1, 1.5 * sc);
+  for (const f of [1 / 3, 2 / 3]) { line(c, W * f, 0, W * f, H); line(c, 0, H * f, W, H * f); }
+  c.setLineDash([14 * sc, 10 * sc]); c.strokeStyle = "rgba(255,212,0,.85)"; c.lineWidth = Math.max(1.5, 2 * sc);
+  line(c, 0, H / 2, W, H / 2); line(c, W / 2, 0, W / 2, H); c.setLineDash([]);
+
+  const checks = [];
+  const add = (label, ok, hint, say) => checks.push({ label, ok, hint, say });
+  add("Querformat", W > H, "Handy quer drehen", "Handy quer drehen");
+  let person = false;
+  if (!L) {
+    add("Fahrer erkannt", false, live.lm ? "Noch niemand erkannt – setz dich in Fahrposition aufs Rad" : live.lmFailed ? "Pose-Erkennung nicht verfügbar – nach Hilfslinien ausrichten" : "Pose-Erkennung lädt …", null);
+  } else {
+    person = true;
+    const P = L.map(p => ({ x: p.x * W, y: p.y * H, v: p.visibility ?? 1 }));
+    const vR = [12, 24, 26, 28].reduce((s, i) => s + P[i].v, 0), vL = [11, 23, 25, 27].reduce((s, i) => s + P[i].v, 0);
+    const I = LM[vR >= vL ? "right" : "left"];
+    const pts = [I.ear, I.sh, I.el, I.wr, I.hip, I.kn, I.an, I.he, I.toe].map(i => P[i]);
+    const minX = Math.min(...pts.map(p => p.x)), maxX = Math.max(...pts.map(p => p.x));
+    const minY = Math.min(...pts.map(p => p.y)), maxY = Math.max(...pts.map(p => p.y));
+    const inside = minX > 0.03 * W && maxX < 0.97 * W && minY > 0.03 * H && maxY < 0.97 * H;
+    add("Ganzer Körper im Bild", inside, "Kopf, Hände und Füße müssen komplett drin sein – Kamera weiter weg", "Du bist nicht ganz im Bild, Kamera weiter weg");
+    const hF = (maxY - minY) / H;
+    const sizeOk = hF >= 0.5 && hF <= 0.88;
+    add("Abstand", sizeOk, hF < 0.5 ? "Fahrer zu klein im Bild – Kamera näher ran" : "Fahrer zu groß im Bild – Kamera weiter weg", hF < 0.5 ? "Kamera näher ran" : "Kamera weiter weg");
+    const cx = (minX + maxX) / 2;
+    add("Fahrer mittig", cx > 0.38 * W && cx < 0.62 * W, cx < W / 2 ? "Kamera ein Stück nach links verschieben" : "Kamera ein Stück nach rechts verschieben", "Kamera seitlich verschieben, bis du mittig bist");
+    const torso = dist(P[I.sh], P[I.hip]) || 1;
+    const sideR = Math.max(Math.abs(P[11].x - P[12].x), Math.abs(P[23].x - P[24].x)) / torso;
+    add("Exakt seitlich (90° zum Rad)", sideR < 0.25, `Kamera steht schräg (${Math.round(sideR * 100)} %) – im rechten Winkel zum Rad, auf Höhe Tretlager aufstellen`, "Kamera steht schräg. Stell sie im rechten Winkel zum Rad auf");
+    const hipY = P[I.hip].y;
+    const camHigh = H / 2 < hipY - 0.1 * H, camLow = H / 2 > (hipY + maxY) / 2 + 0.08 * H;
+    add("Kamerahöhe (Hüfte–Tretlager)", !camHigh && !camLow, camHigh ? "Kamera tiefer stellen – gelbe Linie soll zwischen Hüfte und Tretlager liegen" : "Kamera höher stellen – gelbe Linie soll zwischen Hüfte und Tretlager liegen", camHigh ? "Kamera etwas tiefer" : "Kamera etwas höher");
+    const vis = [I.sh, I.el, I.wr, I.hip, I.kn, I.an, I.toe].reduce((s, i) => s + P[i].v, 0) / 7;
+    add("Licht & Erkennung", vis > 0.7, "Gelenke schlecht erkennbar – mehr Licht, enge Kleidung, ruhiger Hintergrund", "Mehr Licht bitte");
+    // Skelett + Rahmen
+    c.lineCap = "round"; c.lineWidth = Math.max(3, 5 * sc); c.strokeStyle = inside && sizeOk ? "#1f9d55" : "#e4572e";
+    [["toe", "an"], ["he", "an"], ["an", "kn"], ["kn", "hip"], ["hip", "sh"], ["sh", "el"], ["el", "wr"], ["sh", "ear"]]
+      .forEach(([a, b]) => line(c, P[I[a]].x, P[I[a]].y, P[I[b]].x, P[I[b]].y));
+    c.fillStyle = "#fff"; ["toe", "an", "kn", "hip", "sh", "el", "wr"].forEach(k => { c.beginPath(); c.arc(P[I[k]].x, P[I[k]].y, Math.max(4, 6 * sc), 0, 7); c.fill(); });
+    c.setLineDash([6 * sc, 6 * sc]); c.lineWidth = Math.max(1, 2 * sc); c.strokeStyle = "rgba(255,255,255,.6)";
+    c.strokeRect(minX - 10 * sc, minY - 10 * sc, maxX - minX + 20 * sc, maxY - minY + 20 * sc); c.setLineDash([]);
+  }
+  // Wasserwaage
+  const o = live.orient;
+  if (o) {
+    const ok = Math.abs(o.roll) <= 2 && Math.abs(o.pitch) <= 6;
+    add("Waagerecht & gerade", ok, `Schräglage ${o.roll.toFixed(1)}°, Kippung ${o.pitch.toFixed(1)}° – Handy gerade ausrichten (Blase in die Mitte)`, "Handy gerade ausrichten");
+    const R = 46 * sc, cxL = W - R - 18 * sc, cyL = R + 60 * sc, k = R / 10;
+    c.fillStyle = "rgba(0,0,0,.55)"; c.beginPath(); c.arc(cxL, cyL, R, 0, 7); c.fill();
+    c.strokeStyle = "rgba(255,255,255,.7)"; c.lineWidth = Math.max(1, 1.5 * sc);
+    c.beginPath(); c.arc(cxL, cyL, R * 0.25, 0, 7); c.stroke(); line(c, cxL - R, cyL, cxL + R, cyL); line(c, cxL, cyL - R, cxL, cyL + R);
+    const bx = cxL + Math.max(-1, Math.min(1, o.roll * k / R)) * R * 0.8, by = cyL + Math.max(-1, Math.min(1, o.pitch * k / R)) * R * 0.8;
+    c.fillStyle = ok ? "#1f9d55" : "#e4572e"; c.beginPath(); c.arc(bx, by, R * 0.2, 0, 7); c.fill();
+  } else {
+    add("Waagerecht & gerade", null, "Kein Lagesensor – Stativ mit Wasserwaage nutzen; Boden/Rolle parallel zur gelben Linie", null);
+  }
+
+  const now = performance.now();
+  const all = person && checks.every(x => x.ok !== false);
+  if (all) { if (!live.okSince) live.okSince = now; } else { live.okSince = 0; live.announced = false; }
+  const perfect = all && now - live.okSince > 1200;
+  const busy = live.recording || live.countdown;
+  if (perfect && !live.announced && !busy) { live.announced = true; speak("Perfekt ausgerichtet. Du kannst die Aufnahme starten."); }
+  const firstBad = checks.find(x => x.ok === false);
+  if (firstBad?.say && person && !busy && now - live.lastHint > 7000) { live.lastHint = now; speak(firstBad.say); }
+  if (perfect) { c.strokeStyle = "#1f9d55"; c.lineWidth = 10 * sc; c.strokeRect(0, 0, W, H); }
+  if (!busy) {
+    const b = $("liveBanner");
+    b.textContent = perfect ? "✓ Perfekt ausgerichtet" : (firstBad ? firstBad.hint : "Kurz stillhalten …");
+    b.classList.toggle("good", perfect);
+  }
+  if (now - live.lastList > 250) {
+    live.lastList = now;
+    $("checks").innerHTML = checks.map(x => `<li class="${x.ok === true ? "ok" : x.ok === false ? "bad" : "na"}"><span class="i">${x.ok === true ? "✓" : x.ok === false ? "✗" : "–"}</span><div>${x.label}${x.ok !== true ? `<small>${x.hint}</small>` : ""}</div></li>`).join("");
+  }
+}
+
+function resetRecUI() { $("recBadge").classList.add("hidden"); $("recBadge").classList.remove("rec"); $("recBtn").classList.remove("hidden"); $("recStop").classList.add("hidden"); }
+function stopLive() {
+  cancelAnimationFrame(live.raf); clearInterval(live.timer);
+  if (live.rec && live.rec.state !== "inactive") { live.discard = true; live.rec.stop(); }
+  live.stream?.getTracks().forEach(t => t.stop()); live.stream = null; lv.srcObject = null;
+  try { live.wake?.release(); } catch {} live.wake = null;
+  window.removeEventListener("deviceorientation", onOrient);
+  live.countdown = false; live.recording = false;
+  $("liveModal").classList.add("hidden"); document.body.style.overflow = "";
+  resetRecUI(); $("recBtn").disabled = true;
+}
+$("liveClose").onclick = () => { speak(""); stopLive(); };
+
+$("recBtn").onclick = () => {
+  if (!live.stream) return;
+  if (!window.MediaRecorder) { $("liveMsg").textContent = "⚠️ Dieser Browser kann nicht aufnehmen – richte hier aus, filme mit der Kamera-App und lade das Video dann hoch."; return; }
+  const cd = Math.max(3, +$("recCountdown").value || 15), dur = Math.max(10, +$("recDur").value || 30);
+  live.countdown = true;
+  $("recBtn").classList.add("hidden"); $("recStop").classList.remove("hidden");
+  const badge = $("recBadge"), banner = $("liveBanner");
+  badge.classList.remove("hidden", "rec");
+  banner.textContent = "Aufsteigen & locker eintreten …"; banner.classList.remove("good");
+  let left = cd; badge.textContent = left;
+  speak(`Aufnahme startet in ${left} Sekunden. Aufsteigen und locker eintreten.`);
+  live.timer = setInterval(() => {
+    left--;
+    if (left > 0) { badge.textContent = left; if (left <= 3 || left === 5 || left === 10) speak(String(left)); }
+    else { clearInterval(live.timer); live.countdown = false; beginRecording(dur); }
+  }, 1000);
+};
+function beginRecording(dur) {
+  const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  const mime = types.find(t => MediaRecorder.isTypeSupported?.(t)) || "";
+  let rec;
+  try { rec = new MediaRecorder(live.stream, mime ? { mimeType: mime, videoBitsPerSecond: 8e6 } : undefined); }
+  catch { rec = new MediaRecorder(live.stream); }
+  live.chunks = []; live.discard = false; live.rec = rec; live.recording = true;
+  rec.ondataavailable = e => { if (e.data && e.data.size) live.chunks.push(e.data); };
+  rec.onstop = () => {
+    live.recording = false; clearInterval(live.timer);
+    if (live.discard) return;
+    finishRecording(new Blob(live.chunks, { type: rec.mimeType || mime || "video/webm" }));
+  };
+  rec.start(1000);
+  speak("Los, Aufnahme läuft. Gleichmäßig um die neunzig treten.");
+  const badge = $("recBadge"), banner = $("liveBanner"); badge.classList.add("rec");
+  banner.textContent = "Aufnahme läuft – gleichmäßig treten"; banner.classList.remove("good");
+  const t0 = Date.now();
+  const upd = () => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    badge.textContent = `● REC ${s}/${dur} s`;
+    if (s >= dur && rec.state === "recording") rec.stop();
+  };
+  upd(); live.timer = setInterval(upd, 250);
+}
+$("recStop").onclick = () => {
+  if (live.countdown) { clearInterval(live.timer); live.countdown = false; resetRecUI(); speak("Abgebrochen"); return; }
+  if (live.rec && live.rec.state === "recording") live.rec.stop();
+};
+function finishRecording(blob) {
+  speak("Aufnahme fertig. Du kannst absteigen.");
+  const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+  const url = URL.createObjectURL(blob);
+  stopLive();
+  loadVideo(url, 3);
+  const name = `bikefit_${bike}_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.${ext}`;
+  $("recLink").innerHTML = `Aufnahme übernommen (${(blob.size / 1e6).toFixed(1)} MB) · <a href="${url}" download="${name}">Video speichern</a>`;
+  $("videoCard").scrollIntoView({ behavior: "smooth" });
 }
 
 /* ---------- Analyse ---------- */

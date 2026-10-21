@@ -23,6 +23,16 @@ Dazu: Snapshots der Schlüsselpositionen mit eingezeichneten Winkeln, Winkelverl
 
 Der Maßstab wird aus deiner **Kurbellänge** berechnet (der Fuß beschreibt einen Kreis mit etwa diesem Radius). Kurbellänge also korrekt eintragen. Die mm-Werte sind Schätzungen – immer schrittweise (max. ~5 mm) ändern und neu filmen.
 
+## Live-Kamera-Ausrichtung & Aufnahme
+
+Mit **„Live-Ausrichtung starten“** öffnet sich das Kamerabild mit Drittel-Linien, gelbem Fadenkreuz und einer Wasserwaage (Lagesensor des Handys). Die App erkennt dich live und prüft:
+
+- Querformat · ganzer Körper im Bild · passender Abstand · Fahrer mittig
+- Kamera **exakt seitlich** (90° zum Rad) · Kamerahöhe zwischen Hüfte und Tretlager
+- Handy waagerecht und nicht gekippt · genug Licht für die Gelenkerkennung
+
+Sind alle Punkte grün, wird der Rahmen grün und eine Sprachansage meldet „Perfekt ausgerichtet“ (Hinweise zum Korrigieren kommen ebenfalls per Sprache – praktisch, wenn du schon auf dem Rad sitzt). Danach startet die Aufnahme mit Countdown direkt in der App und das Video wird automatisch in die Analyse übernommen. Kamera-Zugriff braucht https – GitHub Pages passt.
+
 ## So filmst du richtig
 
 - Rad auf der Rolle, Kamera **exakt seitlich** auf Hüfthöhe, ca. 3 m Abstand, Querformat, Stativ
