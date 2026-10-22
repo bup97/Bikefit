@@ -108,6 +108,12 @@ summary{cursor:pointer;font-weight:600}
 .cam .camPanel{padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:#14161b}
 .cam input{width:100%;padding:12px;border-radius:10px;border:1px solid #2a2f38;background:#0f1115;color:#fff;font:700 24px ui-monospace,Menlo,monospace;letter-spacing:.2em;text-align:center}
 .cam .sub{color:#9aa3b2}
+.chkGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 16px}
+.chk{display:flex;gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;color:var(--ink);margin:0;cursor:pointer;padding:6px 0}
+.chk input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.tiltBig{font:800 34px system-ui;text-align:center;margin:6px 0 10px}
+.recs li.info{border-left:4px solid #3b82f6}
+.target{font-size:14px;margin:4px 0 12px}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
 @media print{
   .noprint{display:none!important}
@@ -133,16 +139,23 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
       <button data-bike="road" class="on">🚴 Rennrad</button>
       <button data-bike="tt">🏁 Zeitfahrer / Tri</button>
     </div>
+    <label style="margin-top:12px">Ansicht</label>
+    <div class="seg" id="viewSeg">
+      <button data-view="side" class="on">↔ Seite</button>
+      <button data-view="rear">⬇ Hinten</button>
+      <button data-view="front">⬆ Vorne</button>
+    </div>
+    <div class="sub" id="viewHint" style="margin-top:6px"></div>
     <div class="grid" style="margin-top:12px">
       <div>
         <label for="profile">Zielprofil</label>
         <select id="profile"></select>
       </div>
-      <div>
+      <div id="crankField">
         <label for="crank">Kurbellänge (mm)</label>
         <input type="number" id="crank" value="172.5" step="2.5" min="150" max="185">
       </div>
-      <div>
+      <div id="sideField">
         <label for="side">Gefilmte Seite</label>
         <select id="side">
           <option value="auto">Automatisch</option>
@@ -171,6 +184,8 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
         <li>Erst 5 Min. warmfahren, dann 20–30 s bei ~85–95 U/min und moderater Last filmen.</li>
         <li>Rennrad: Hände an den Hoods. Zeitfahrer: in Aeroposition auf den Extensions.</li>
         <li>Wenn möglich 60 fps – mehr Bilder pro Kurbelumdrehung = genauere Werte.</li>
+        <li><b>Von hinten</b> (Becken-Wackeln, Schiefstand): Kamera genau in Verlängerung des Rads auf Sattelhöhe, 2–3 m dahinter. Hoch- oder Querformat.</li>
+        <li><b>Von vorne</b> (Knie-Spur, Fußstellung): Kamera genau vor dem Rad auf Kniehöhe, 2–3 m davor.</li>
         <li>Am einfachsten: <b>Live-Ausrichtung</b> unten nutzen – die App sagt dir, wie du die Kamera verschieben musst, und nimmt direkt auf.</li>
       </ul>
     </details>
@@ -269,13 +284,76 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 40px}
     <div class="card">
       <h2>Winkelverlauf</h2>
       <canvas id="chart"></canvas>
-      <div class="sub">Knie (orange) und Hüfte (blau) über die Zeit · Punkte = unterer Totpunkt</div>
+      <div class="sub" id="chartNote">Knie (orange) und Hüfte (blau) über die Zeit · Punkte = unterer Totpunkt</div>
     </div>
 
     <div class="card">
       <h2>Alle Messwerte</h2>
       <div class="scroll"><table id="table"></table></div>
     </div>
+  </section>
+
+  <!-- SADDLE -->
+  <section class="card" id="saddleCard">
+    <h2>🪑 Sattel: Neigung & Position · <span class="bikeName">Rennrad</span></h2>
+    <div class="target" id="tiltTarget"></div>
+    <div class="grid">
+      <div><label for="tiltVal">Sattelneigung (°) · minus = Nase runter</label><input type="number" id="tiltVal" step="0.1" placeholder="z. B. -1.5"></div>
+      <div style="align-self:end" class="noprint"><button class="btn ghost" id="tiltMeasure" style="width:100%">📐 Mit dem Handy messen</button></div>
+    </div>
+    <div id="tiltTool" class="proBox hidden noprint">
+      <div class="tiltBig" id="tiltLive">–</div>
+      <ol class="sub" style="margin:0 0 10px;padding-left:18px">
+        <li>Rad muss waagerecht stehen (Vorderrad-Block auf der Rolle).</li>
+        <li>Handy flach auf den Boden neben das Rad → <b>Nullpunkt</b>.</li>
+        <li>Lineal oder Buch längs über den Sattel (Nase bis Heck), Handy hochkant drauflegen – <b>Oberkante zeigt zur Sattelnase</b>.</li>
+        <li>Wert ruhig werden lassen → <b>Übernehmen</b>.</li>
+      </ol>
+      <div class="row">
+        <button class="btn ghost" id="tiltZero">① Nullpunkt</button>
+        <button class="btn" id="tiltTake">② Übernehmen</button>
+        <button class="btn ghost" id="tiltClose">Schließen</button>
+      </div>
+      <div class="sub" id="tiltMsg" style="margin-top:8px"></div>
+    </div>
+    <h3>Was spürst du auf dem <span class="bikeName">Rennrad</span>?</h3>
+    <div class="chkGrid" id="saddleSym"></div>
+    <h3>Empfehlung</h3>
+    <ul class="recs" id="saddleRecs"></ul>
+  </section>
+
+  <!-- FOOT -->
+  <section class="card" id="footCard">
+    <h2>👟 Fußstellung & Cleats · <span class="bikeName">Rennrad</span></h2>
+    <div class="grid">
+      <div><label for="shoeSize">Schuhgröße (EU)</label><input type="number" id="shoeSize" min="34" max="50" step="0.5" placeholder="z. B. 43"></div>
+      <div><label for="footTest">Fußtest: wie hängen deine Füße?</label>
+        <select id="footTest">
+          <option value="">– noch nicht gemacht –</option>
+          <option value="out">Fußspitzen zeigen nach außen</option>
+          <option value="straight">Gerade nach vorn</option>
+          <option value="in">Fußspitzen zeigen nach innen</option>
+        </select></div>
+    </div>
+    <details>
+      <summary>Fußtest – so geht's</summary>
+      <div class="sub">Setz dich auf eine Tischkante, Oberschenkel parallel, Beine locker baumeln lassen, Augen zu, 30 s entspannen. Dann von oben schauen, wohin die Fußspitzen zeigen. So sollen die Cleats grob stehen – nicht gegen den natürlichen Winkel arbeiten.</div>
+    </details>
+    <h3>Was spürst du?</h3>
+    <div class="chkGrid" id="footSym"></div>
+    <h3>Empfehlung</h3>
+    <ul class="recs" id="footRecs"></ul>
+    <details>
+      <summary>Cleats anzeichnen & einstellen – Schritt für Schritt</summary>
+      <ol class="sub" style="padding-left:18px">
+        <li>Schuh anziehen, <b>Großzehen-Grundgelenk</b> (der Knubbel innen am Ballen) ertasten, außen am Schuh mit Klebeband markieren.</li>
+        <li>Schuh ausziehen, Markierung senkrecht auf die Sohle übertragen.</li>
+        <li>Die Mitte des Cleats (Pedalachse, Markierung am Cleat) um den empfohlenen Wert <b>hinter</b> diese Linie setzen.</li>
+        <li>Rotation nach Fußtest einstellen, seitlich erst mittig.</li>
+        <li>Schrauben handfest, kurz fahren, dann mit Drehmoment festziehen. Beide Seiten gleich – außer das Video zeigt Unterschiede.</li>
+        <li>Nach jeder Änderung ein paar Ausfahrten, dann neu filmen (vorne + seitlich).</li>
+      </ol>
+    </details>
   </section>
 
   <!-- HISTORY / COMPARE -->
@@ -361,6 +439,28 @@ const METRIC_INFO = {
   elbow:      { n:"Ellbogenwinkel", u:"°", d:"Oberarm zu Unterarm." },
   kops:       { n:"Knie über Pedal", u:"mm", d:"Knie-Gelenkzentrum relativ zur Pedalachse bei 3 Uhr (+ = davor)." },
 };
+const FOOT_T = { footBDC: [5, 25], ankleROM: [15, 35], hipBounce: [0, 18] };
+const FRONTAL_T = { pelvisRock: [0, 5], pelvisTilt: [-2, 2], hipSway: [0, 12], shoulderRock: [0, 6], bodySway: [0, 20],
+  kneeTravelL: [0, 20], kneeTravelR: [0, 20], kneeDevL: [-10, 10], kneeDevR: [-10, 10] };
+Object.assign(METRIC_INFO, {
+  footBDC:    { n:"Fußwinkel unten", u:"°", d:"Ferse→Fußspitze zur Horizontalen am unteren Totpunkt (+ = Spitze unten)." },
+  foot3:      { n:"Fußwinkel bei 3 Uhr", u:"°", d:"Ferse→Fußspitze in der Druckphase (+ = Spitze unten, – = Ferse unten)." },
+  ankleROM:   { n:"Fußgelenk-Bewegung", u:"°", d:"Spanne des Winkels Knie–Knöchel–Fußspitze über die Umdrehung („Ankling“)." },
+  hipBounce:  { n:"Becken auf/ab", u:"mm", d:"Vertikale Bewegung der Hüfte. Hoch = Becken hüpft – Sattel zu hoch oder Last/Trittfrequenz unpassend." },
+  hipDrift:   { n:"Sitzposition-Drift", u:"mm", d:"Wie weit die Hüfte während der Aufnahme nach vorn (+) gewandert ist. Rutschen nach vorn → Sattelnase oft zu steil." },
+  pelvisRock: { n:"Becken-Kippen", u:"°", d:"Seitliches Schaukeln der Hüftlinie (Spanne). Hoch = Becken wackelt – oft Sattel zu hoch." },
+  pelvisTilt: { n:"Becken-Schiefstand", u:"°", d:"Mittlere Neigung der Hüftlinie (+ = linke Hüfte tiefer). Nur bei waagerechter Kamera aussagekräftig." },
+  hipSway:    { n:"Becken seitlich", u:"%", d:"Seitliches Hin- und Herrutschen der Beckenmitte, in % der Hüftbreite." },
+  shoulderRock:{ n:"Schultern kippen", u:"°", d:"Seitliches Schaukeln der Schulterlinie." },
+  bodySway:   { n:"Oberkörper seitlich", u:"%", d:"Seitliche Bewegung der Schultern gegenüber dem Becken, in % der Hüftbreite." },
+  kneeTravelL:{ n:"Knie links wackelt", u:"%", d:"Seitliche Bewegung des linken Knies pro Umdrehung, in % der Hüftbreite (grob: 10 % ≈ 1,5–2 cm)." },
+  kneeTravelR:{ n:"Knie rechts wackelt", u:"%", d:"Seitliche Bewegung des rechten Knies pro Umdrehung, in % der Hüftbreite." },
+  kneeDevL:   { n:"Knie links innen/außen", u:"%", d:"Knie relativ zur Linie Hüfte–Fuß (+ = Knie innen, Richtung Oberrohr)." },
+  kneeDevR:   { n:"Knie rechts innen/außen", u:"%", d:"Knie relativ zur Linie Hüfte–Fuß (+ = Knie innen, Richtung Oberrohr)." },
+  footRotL:   { n:"Fuß links Spitze außen/innen", u:"%", d:"Fußspitze relativ zur Ferse (+ = Spitze zeigt nach außen)." },
+  footRotR:   { n:"Fuß rechts Spitze außen/innen", u:"%", d:"Fußspitze relativ zur Ferse (+ = Spitze zeigt nach außen)." },
+  stance:     { n:"Fußabstand", u:"%", d:"Abstand der Knöchel in % der Hüftbreite." },
+});
 const LM = {
   left:  { ear:7, sh:11, el:13, wr:15, hip:23, kn:25, an:27, he:29, toe:31 },
   right: { ear:8, sh:12, el:14, wr:16, hip:24, kn:26, an:28, he:30, toe:32 },
@@ -374,6 +474,7 @@ const $ = id => document.getElementById(id);
 const video = $("video"), overlay = $("overlay"), octx = overlay.getContext("2d");
 let bike = "road", landmarker = null, landmarkerModel = null, tsCounter = 0, cancel = false;
 let frames = [], analysis = null;
+let view = "side";
 
 /* ---------- Theme ---------- */
 $("themeBtn").onclick = () => {
@@ -399,7 +500,22 @@ $("bikeSeg").addEventListener("click", e => {
   [...$("bikeSeg").children].forEach(x => x.classList.toggle("on", x === b));
   fillProfiles();
   if (analysis) { analysis.profileKey = $("profile").value; analysis.bike = bike; renderResults(analysis, false); }
+  syncTools();
 });
+const VIEW_HINT = {
+  side: "Seitenansicht: Sattelhöhe, Sattel vor/zurück, Front, Fußwinkel.",
+  rear: "Von hinten: Becken-Kippen und -Schiefstand, Knie-Spur. Kamera genau hinter dem Rad auf Sattelhöhe, 2–3 m Abstand.",
+  front: "Von vorne: Knie-Spur (Knie über Fuß), Fußstellung, Oberkörper. Kamera genau vor dem Rad auf Kniehöhe, 2–3 m Abstand.",
+};
+function setView(v) {
+  view = v;
+  [...$("viewSeg").children].forEach(x => x.classList.toggle("on", x.dataset.view === v));
+  $("viewHint").textContent = VIEW_HINT[v];
+  $("sideField").classList.toggle("hidden", v !== "side");
+  $("crankField").classList.toggle("hidden", v !== "side");
+}
+$("viewSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setView(b.dataset.view); });
+setView("side");
 $("profile").onchange = () => { if (analysis) { analysis.profileKey = $("profile").value; renderResults(analysis, false); } };
 fillProfiles();
 
@@ -542,10 +658,36 @@ function drawLive(L) {
 
   const checks = [];
   const add = (label, ok, hint, say) => checks.push({ label, ok, hint, say });
-  add("Querformat", W > H, "Handy quer drehen", "Handy quer drehen");
+  add("Ansicht: " + { side: "Seite", rear: "Hinten", front: "Vorne" }[view], null, "Umschalten oben im Setup", null);
+  if (view === "side") add("Querformat", W > H, "Handy quer drehen", "Handy quer drehen");
   let person = false;
   if (!L) {
     add("Fahrer erkannt", false, live.lm ? "Noch niemand erkannt – setz dich in Fahrposition aufs Rad" : live.lmFailed ? "Pose-Erkennung nicht verfügbar – nach Hilfslinien ausrichten" : "Pose-Erkennung lädt …", null);
+  } else if (view !== "side") {
+    person = true;
+    const P = L.map(p => ({ x: p.x * W, y: p.y * H, v: p.visibility ?? 1 }));
+    const { l, r } = riderSides(P, view);
+    const pts = [l, r].flatMap(q => [q.ear, q.sh, q.wr, q.hip, q.kn, q.an, q.toe]);
+    const minX = Math.min(...pts.map(p => p.x)), maxX = Math.max(...pts.map(p => p.x));
+    const minY = Math.min(...pts.map(p => p.y)), maxY = Math.max(...pts.map(p => p.y));
+    const inside = minX > 0.03 * W && maxX < 0.97 * W && minY > 0.03 * H && maxY < 0.97 * H;
+    add("Ganzer Körper im Bild", inside, "Kopf, Hände und Füße müssen komplett drin sein – Kamera weiter weg", "Du bist nicht ganz im Bild, Kamera weiter weg");
+    const hF = (maxY - minY) / H, sizeOk = hF >= 0.55 && hF <= 0.92;
+    add("Abstand", sizeOk, hF < 0.55 ? "Fahrer zu klein im Bild – Kamera näher ran" : "Fahrer zu groß im Bild – Kamera weiter weg", hF < 0.55 ? "Kamera näher ran" : "Kamera weiter weg");
+    const hw = dist(l.hip, r.hip) || 1, hipMid = (l.hip.x + r.hip.x) / 2, shMid = (l.sh.x + r.sh.x) / 2;
+    add("Rad genau mittig", Math.abs(hipMid - W / 2) < 0.06 * W, hipMid < W / 2 ? "Kamera ein Stück nach links verschieben" : "Kamera ein Stück nach rechts verschieben", "Kamera seitlich verschieben, bis das Rad genau mittig ist");
+    const off = (shMid - hipMid) / hw * (view === "rear" ? 1 : -1);
+    add(view === "rear" ? "Genau von hinten (in Linie mit dem Rad)" : "Genau von vorne (in Linie mit dem Rad)", Math.abs(off) < 0.25,
+      `Kamera steht seitlich versetzt (${Math.round(Math.abs(off) * 100)} %) – ${off > 0 ? "ein Stück nach links" : "ein Stück nach rechts"} in die Verlängerung des Rads stellen`,
+      off > 0 ? "Kamera etwas nach links, genau in Linie mit dem Rad" : "Kamera etwas nach rechts, genau in Linie mit dem Rad");
+    const hipY = (l.hip.y + r.hip.y) / 2, ankY = (l.an.y + r.an.y) / 2;
+    const target = view === "rear" ? hipY : (hipY + ankY) / 2, tol = 0.12 * H, where = view === "rear" ? "Sattelhöhe" : "Kniehöhe";
+    const camHigh = H / 2 < target - tol, camLow = H / 2 > target + tol;
+    add(view === "rear" ? "Kamerahöhe (Sattel)" : "Kamerahöhe (Knie)", !camHigh && !camLow,
+      camHigh ? `Kamera tiefer stellen – gelbe Linie auf ${where}` : `Kamera höher stellen – gelbe Linie auf ${where}`, camHigh ? "Kamera etwas tiefer" : "Kamera etwas höher");
+    const vis = [l.hip, r.hip, l.kn, r.kn, l.an, r.an, l.sh, r.sh].reduce((q, p) => q + p.v, 0) / 8;
+    add("Licht & Erkennung", vis > 0.65, "Gelenke schlecht erkennbar – mehr Licht, enge Kleidung, ruhiger Hintergrund", "Mehr Licht bitte");
+    drawFrontalSkeleton(c, l, r, sc, inside && sizeOk ? "#1f9d55" : "#e4572e");
   } else {
     person = true;
     const P = L.map(p => ({ x: p.x * W, y: p.y * H, v: p.visibility ?? 1 }));
@@ -683,7 +825,7 @@ function finishRecording(blob) {
   const url = URL.createObjectURL(blob);
   stopLive();
   loadVideo(url, 3);
-  const name = `bikefit_${bike}_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.${ext}`;
+  const name = `bikefit_${bike}_${view}_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.${ext}`;
   $("recLink").innerHTML = `Aufnahme übernommen (${(blob.size / 1e6).toFixed(1)} MB) · <a href="${url}" download="${name}">Video speichern</a>`;
   $("videoCard").scrollIntoView({ behavior: "smooth" });
 }
@@ -880,7 +1022,8 @@ $("analyzeBtn").onclick = async () => {
       if (i % 3 === 0) { setProg(i / n); setStatus(`Analysiere Bild ${i + 1} von ${n} …`); }
     }
     setProg(1);
-    analysis = computeAnalysis(frames, fps);
+    analysis = view === "side" ? computeAnalysis(frames, fps) : computeFrontal(frames, fps, view);
+    analysis.kind = view === "side" ? "side" : "frontal"; analysis.view = view;
     analysis.profileKey = $("profile").value; analysis.bike = bike;
     analysis.date = new Date().toISOString();
     await renderResults(analysis, true);
@@ -943,7 +1086,7 @@ function computeAnalysis(frames, fps) {
   // Fahrtrichtung
   const facing = Math.sign(median(valid.map(f => P(f, "sh").x - P(f, "hip").x))) || 1;
   // Zeitreihen
-  const S = { t: [], knee: [], hip: [], back: [], shoulder: [], elbow: [], ankle: [], px: [], py: [], kx: [] };
+  const S = { t: [], knee: [], hip: [], back: [], shoulder: [], elbow: [], ankle: [], px: [], py: [], kx: [], fa: [], hx: [], hy: [] };
   valid.forEach(f => {
     const sh = P(f, "sh"), el = P(f, "el"), wr = P(f, "wr"), hp = P(f, "hip"), kn = P(f, "kn"), an = P(f, "an"), toe = P(f, "toe");
     const ped = { x: (an.x + toe.x) / 2, y: (an.y + toe.y) / 2 };
@@ -955,8 +1098,11 @@ function computeAnalysis(frames, fps) {
     S.elbow.push(ang(sh, el, wr));
     S.ankle.push(ang(kn, an, toe));
     S.px.push(ped.x); S.py.push(ped.y); S.kx.push(kn.x);
+    const he = P(f, "he");
+    S.fa.push(deg(Math.atan2(toe.y - he.y, Math.abs(toe.x - he.x))));
+    S.hx.push(hp.x * facing); S.hy.push(hp.y);
   });
-  for (const k of ["knee", "hip", "back", "shoulder", "elbow", "ankle", "px", "py", "kx"]) S[k] = smooth(S[k], 1);
+  for (const k of ["knee", "hip", "back", "shoulder", "elbow", "ankle", "px", "py", "kx", "fa", "hx", "hy"]) S[k] = smooth(S[k], 1);
   // Kurbelzyklus
   const per = period(S.py, fps);
   const w = Math.max(2, Math.round(per * 0.35)), h = Math.max(1, Math.round(per * 0.15));
@@ -978,7 +1124,12 @@ function computeAnalysis(frames, fps) {
   const seg = (a, b) => median(valid.map(f => dist(P(f, a), P(f, b)))) * mmPerPx;
   const bdcTimes = bdc.map(i => S.t[i]);
   const cad = bdcTimes.length > 1 ? 60 / median(bdcTimes.slice(1).map((t, i) => t - bdcTimes[i])) : NaN;
-  const ankleMinMax = bdc.map((i, k) => winMax(S.ankle, i));
+  // Fuß & Becken
+  const footBDC = bdc.map(i => S.fa[i]), foot3 = three.map(i => S.fa[i]);
+  const hipBounce = (pct(S.hy, .95) - pct(S.hy, .05)) * mmPerPx;
+  const tm = S.t.reduce((a, b) => a + b, 0) / S.t.length, xm = S.hx.reduce((a, b) => a + b, 0) / S.hx.length;
+  let num = 0, den = 0; S.t.forEach((t, i) => { if (Number.isFinite(S.hx[i])) { num += (t - tm) * (S.hx[i] - xm); den += (t - tm) ** 2; } });
+  const hipDrift = den ? num / den * (S.t[S.t.length - 1] - S.t[0]) * mmPerPx : NaN;
   return {
     side, facing, fps, cycles: bdc.length, cadence: cad, mmPerPx, crank,
     visibility: side === "right" ? visR : visL,
@@ -991,6 +1142,11 @@ function computeAnalysis(frames, fps) {
       shoulder: { v: median(S.shoulder), sd: sd(S.shoulder), n: S.shoulder.length },
       elbow: { v: median(S.elbow), sd: sd(S.elbow), n: S.elbow.length },
       kops: { v: median(kops), sd: sd(kops), n: kops.length },
+      footBDC: { v: median(footBDC), sd: sd(footBDC), n: footBDC.length },
+      foot3: { v: median(foot3), sd: sd(foot3), n: foot3.length },
+      ankleROM: { v: pct(S.ankle, .95) - pct(S.ankle, .05), sd: 0, n: S.ankle.length },
+      hipBounce: { v: hipBounce, sd: 0, n: S.hy.length },
+      hipDrift: { v: hipDrift, sd: 0, n: S.hx.length },
     },
     ankleRange: { min: pct(S.ankle, .05), max: pct(S.ankle, .95) },
     series: { t: S.t, knee: S.knee, hip: S.hip },
@@ -1000,6 +1156,108 @@ function computeAnalysis(frames, fps) {
     },
     validTimes: valid.map(f => f.t),
   };
+}
+
+/* ---------- Analyse von vorne / hinten ---------- */
+// Ordnet die Landmarken nach Bildposition – links/rechts immer aus Sicht des Fahrers
+function riderSides(L, v) {
+  const a = LM.left, b = LM.right;
+  const aImgLeft = L[a.hip].x <= L[b.hip].x;
+  const imgL = aImgLeft ? a : b, imgR = aImgLeft ? b : a;
+  const rl = v === "front" ? imgR : imgL, rr = v === "front" ? imgL : imgR;
+  const pick = I => ({ ear: L[I.ear], sh: L[I.sh], el: L[I.el], wr: L[I.wr], hip: L[I.hip], kn: L[I.kn], an: L[I.an], he: L[I.he], toe: L[I.toe] });
+  return { l: pick(rl), r: pick(rr) };
+}
+function computeFrontal(frames, fps, v) {
+  const valid = frames.filter(f => f.L);
+  if (valid.length < fps * 2) throw new Error("Zu wenige Bilder mit erkannter Person. Licht, Abstand und Ansicht prüfen.");
+  const S = { t: [], pelvis: [], shoulder: [], hipMid: [], body: [], hipW: [], devL: [], devR: [], kxL: [], kxR: [], ayL: [], ayR: [], rotL: [], rotR: [], stance: [] };
+  const devOf = (hip, kn, an, mid, hw) => { const k = (kn.y - hip.y) / ((an.y - hip.y) || 1); const xl = hip.x + (an.x - hip.x) * k; return (Math.abs(xl - mid) - Math.abs(kn.x - mid)) / hw * 100; };
+  const rotOf = (q, mid, hw) => (q.he.v > 0.5 && q.toe.v > 0.5) ? (Math.abs(q.toe.x - mid) - Math.abs(q.he.x - mid)) / hw * 100 : NaN;
+  let vis = 0;
+  valid.forEach(f => {
+    const { l, r } = riderSides(f.L, v);
+    const hw = dist(l.hip, r.hip) || 1, mid = (l.hip.x + r.hip.x) / 2;
+    S.t.push(f.t);
+    S.pelvis.push(deg(Math.atan2(l.hip.y - r.hip.y, Math.abs(l.hip.x - r.hip.x))));
+    S.shoulder.push(deg(Math.atan2(l.sh.y - r.sh.y, Math.abs(l.sh.x - r.sh.x))));
+    S.hipMid.push(mid); S.hipW.push(hw);
+    S.body.push(((l.sh.x + r.sh.x) / 2 - mid) / hw * 100);
+    S.devL.push(devOf(l.hip, l.kn, l.an, mid, hw)); S.devR.push(devOf(r.hip, r.kn, r.an, mid, hw));
+    S.kxL.push((l.kn.x - mid) / hw * 100); S.kxR.push((r.kn.x - mid) / hw * 100);
+    S.ayL.push(l.an.y); S.ayR.push(r.an.y);
+    S.rotL.push(rotOf(l, mid, hw)); S.rotR.push(rotOf(r, mid, hw));
+    S.stance.push(Math.abs(l.an.x - r.an.x) / hw * 100);
+    vis += [l.hip, r.hip, l.kn, r.kn, l.an, r.an].reduce((q, p) => q + p.v, 0) / 6;
+  });
+  for (const k of Object.keys(S)) if (k !== "t") S[k] = smooth(S[k], 1);
+  const per = period(S.ayL, fps), w = Math.max(2, Math.round(per * 0.35));
+  const bdcL = peaks(S.ayL, w), bdcR = peaks(S.ayR, w);
+  if (bdcL.length < 2) throw new Error("Keine gleichmäßige Tretbewegung erkannt. Mindestens 3–4 Kurbelumdrehungen filmen.");
+  const span = a => pct(a, .95) - pct(a, .05);
+  const M = a => ({ v: median(a), sd: sd(a), n: a.filter(Number.isFinite).length });
+  const hwMed = median(S.hipW);
+  const tl = bdcL.map(i => S.t[i]);
+  const pMed = median(S.pelvis);
+  let rock = 0; S.pelvis.forEach((p, i) => { if (Math.abs(p - pMed) > Math.abs(S.pelvis[rock] - pMed)) rock = i; });
+  return {
+    kind: "frontal", view: v, fps, cycles: bdcL.length,
+    cadence: tl.length > 1 ? 60 / median(tl.slice(1).map((t, i) => t - tl[i])) : NaN,
+    visibility: vis / valid.length,
+    m: {
+      pelvisRock: { v: span(S.pelvis), sd: sd(S.pelvis), n: S.pelvis.length },
+      pelvisTilt: M(S.pelvis),
+      hipSway: { v: span(S.hipMid) / hwMed * 100, sd: 0, n: S.hipMid.length },
+      shoulderRock: { v: span(S.shoulder), sd: sd(S.shoulder), n: S.shoulder.length },
+      bodySway: { v: span(S.body), sd: sd(S.body), n: S.body.length },
+      kneeTravelL: { v: span(S.kxL), sd: sd(S.kxL), n: S.kxL.length },
+      kneeTravelR: { v: span(S.kxR), sd: sd(S.kxR), n: S.kxR.length },
+      kneeDevL: M(S.devL), kneeDevR: M(S.devR),
+      footRotL: M(S.rotL), footRotR: M(S.rotR),
+      stance: M(S.stance),
+    },
+    series: { t: S.t, knee: S.pelvis, hip: S.shoulder },
+    keyIdx: { bdcL: bdcL[Math.floor(bdcL.length / 2)], bdcR: bdcR[Math.floor(bdcR.length / 2)] ?? bdcL[0], rock, bdcAll: bdcL },
+    validTimes: valid.map(f => f.t),
+  };
+}
+const cap = t => t[0].toUpperCase() + t.slice(1);
+const fmtS = (v, d = 0) => Number.isFinite(v) ? (v > 0 ? "+" : "") + v.toFixed(d) : "–";
+function lastOf(b, kind) { return [...loadHist()].reverse().find(x => PROFILES[x.profileKey]?.bike === b && (x.kind || "side") === kind); }
+function frontalRecs(a) {
+  const m = a.m, T = FRONTAL_T, out = [], bk = PROFILES[a.profileKey].bike;
+  const sideA = lastOf(bk, "side"), SR = sideA ? PROFILES[sideA.profileKey].r : null;
+  const st = k => status(m[k].v, T[k]);
+  if (st("pelvisRock") !== "ok") {
+    let t = "Becken kippt seitlich hin und her", why = `Hüftlinie schaukelt um ${fmt(m.pelvisRock.v, 1)}° (Richtwert ≤ ${T.pelvisRock[1]}°). `;
+    if (sideA && sideA.m.kneeFlexBDC.v < SR.kneeFlexBDC[0]) { t = "Becken kippt – Sattel ca. 3–5 mm tiefer"; why += `Passt zur Seitenanalyse (Kniebeugung unten nur ${fmt(sideA.m.kneeFlexBDC.v)}°): Sattel zu hoch, du „suchst“ unten das Pedal.`; }
+    else if (sideA) why += `Sattelhöhe laut Seitenanalyse ok (Kniebeugung ${fmt(sideA.m.kneeFlexBDC.v)}°) – Ursache eher Sattelform/-breite, zu schwerer Gang oder Rumpfstabilität. Testweise 2–3 mm tiefer, sonst Sattelbreite prüfen.`;
+    else { t = "Becken kippt – Sattel 3–5 mm tiefer testen"; why += "Häufigste Ursache: Sattel zu hoch. Zur Bestätigung eine Seitenanalyse machen."; }
+    out.push({ prio: st("pelvisRock") === "bad" ? 1 : 2, t, why });
+  }
+  if (st("pelvisTilt") !== "ok") {
+    const lo = m.pelvisTilt.v > 0 ? "linke" : "rechte";
+    out.push({ prio: 2, t: `${cap(lo)} Hüfte sitzt tiefer (${fmt(Math.abs(m.pelvisTilt.v), 1)}°)`,
+      why: `Erst prüfen: Kamera waagerecht? Sattel gerade und nicht verdreht? Wenn ja, steckt oft eine Beinlängendifferenz dahinter – das ${lo} Bein „sucht“ das Pedal. Typische Abhilfe: 1–2 mm Unterlage (Shim) unter das ${lo} Cleat oder das ${lo} Cleat 1–2 mm weiter nach hinten. Bei größerer Differenz Beinlänge messen lassen.` });
+  }
+  for (const [k, nm] of [["L", "linke"], ["R", "rechte"]]) {
+    const dev = m["kneeDev" + k].v, trav = m["kneeTravel" + k].v, TD = T["kneeDev" + k], TT = T["kneeTravel" + k];
+    if (dev > TD[1]) out.push({ prio: dev > 18 ? 1 : 2, t: `${cap(nm)}s Knie läuft nach innen`,
+      why: `Knie liegt im Mittel ${fmt(dev)} % der Hüftbreite innerhalb der Linie Hüfte–Fuß (Richtung Oberrohr). Abhilfe: Varus-Keil unter dem Cleat bzw. Einlage mit Gewölbestütze, oder Fuß enger stellen (Cleat ca. 1–2 mm nach außen schieben).` });
+    else if (dev < TD[0]) out.push({ prio: 2, t: `${cap(nm)}s Knie läuft nach außen`,
+      why: `Knie liegt ${fmt(-dev)} % außerhalb der Linie Hüfte–Fuß. Abhilfe: Fuß breiter stellen (Cleat ca. 1–2 mm nach innen schieben oder Pedal-Spacer), Cleat-Rotation prüfen.` });
+    if (trav > TT[1]) out.push({ prio: trav > 28 ? 1 : 2, t: `${cap(nm)}s Knie wackelt seitlich (${fmt(trav)} %)`,
+      why: `Das Knie pendelt pro Umdrehung deutlich hin und her (Richtwert ≤ ${TT[1]} %). Typisch: Cleat-Rotation passt nicht zum natürlichen Fußwinkel, einknickendes Fußgewölbe oder Sattel zu hoch. Siehe „Fußstellung“.` });
+  }
+  if (Math.abs(m.kneeTravelL.v - m.kneeTravelR.v) > 10) out.push({ prio: 2, t: "Linkes und rechtes Bein arbeiten unterschiedlich",
+    why: `Knie-Wackeln links ${fmt(m.kneeTravelL.v)} % vs. rechts ${fmt(m.kneeTravelR.v)} %. Seiten getrennt einstellen (Cleat, Keil, Shim) – nicht beide gleich verändern.` });
+  if (st("shoulderRock") !== "ok" || status(m.bodySway.v, T.bodySway) !== "ok") out.push({ prio: 2, t: "Oberkörper wackelt seitlich",
+    why: `Schultern kippen ${fmt(m.shoulderRock.v, 1)}°, seitlich ${fmt(m.bodySway.v)} %. Oft zu schwerer Gang, Reach zu lang oder fehlende Rumpfstabilität.${bk === "tt" ? " Am Zeitfahrer: Pad-Abstand und Pad-Höhe prüfen – zu breite oder zu tiefe Pads machen instabil." : ""}` });
+  if (st("hipSway") !== "ok") out.push({ prio: 2, t: "Becken rutscht seitlich auf dem Sattel",
+    why: `Beckenmitte bewegt sich ${fmt(m.hipSway.v)} % der Hüftbreite seitlich. Häufig Sattel zu hoch oder Sattelbreite passt nicht.` });
+  if (!out.length) out.push({ prio: 0, t: "Ruhig und symmetrisch 👍", why: "Becken, Knie und Oberkörper bewegen sich im Normalbereich." });
+  out.sort((x, y) => (x.prio || 9) - (y.prio || 9));
+  return out;
 }
 
 /* ---------- Bewertung & Empfehlungen ---------- */
@@ -1072,6 +1330,17 @@ function recommendations(a) {
     out.push({ prio: sH === "bad" ? 1 : 2, t: "Hüftwinkel oben zu geschlossen",
       why: `Hüftwinkel oben ${fmt(m.hipTDC.v)}° (Ziel ≥ ${R.hipTDC[0]}°). ${tt ? "Optionen: Sattel weiter nach vorn (Tri-Sattel, Sitzposition vorne auf der Nase), Pads höher oder kürzere Kurbel." : "Optionen: Lenker höher, Reach kürzer oder kürzere Kurbel."} Wichtig, damit du nach dem Rad noch gut laufen kannst.` });
   }
+  // 8) Becken, Drift, Fuß
+  if (m.hipBounce && m.hipBounce.v > FOOT_T.hipBounce[1]) out.push({ prio: 2, t: "Becken hüpft auf und ab",
+    why: `Hüfte bewegt sich ${fmt(m.hipBounce.v)} mm vertikal (Richtwert ≤ ${FOOT_T.hipBounce[1]} mm). ${kf < R.kneeFlexBDC[0] ? "Passt zur zu starken Beinstreckung – Sattel tiefer (siehe oben)." : "Oft Sattel etwas zu hoch, zu leichter Gang oder sehr hohe Trittfrequenz. Mit etwas mehr Last neu filmen; bleibt es, Sattel 2–3 mm tiefer testen."}` });
+  if (m.hipDrift && m.hipDrift.v > 15) out.push({ prio: 2, t: "Du rutschst nach vorne",
+    why: `Hüfte ist während der Aufnahme ${fmt(m.hipDrift.v)} mm nach vorn gewandert – meist ist die Sattelnase zu steil nach unten geneigt${tt ? " (am Zeitfahrer ist weit vorne sitzen normal – relevant nur, wenn du dich ständig zurückschieben musst)" : ""}. Siehe Bereich „Sattel“: Nase ca. 0,5–1° anheben.` });
+  if (m.footBDC && Number.isFinite(m.footBDC.v)) {
+    if (m.footBDC.v > FOOT_T.footBDC[1] + 5) out.push({ prio: 2, t: "Fußspitze unten stark gesenkt",
+      why: `Fußwinkel am unteren Totpunkt ${fmt(m.footBDC.v)}° (Richtwert ${FOOT_T.footBDC[0]}–${FOOT_T.footBDC[1]}°). Du streckst das Bein über den Fuß nach – oft Sattel zu hoch oder Cleats zu weit vorne. Siehe „Fußstellung“.` });
+    else if (m.footBDC.v < FOOT_T.footBDC[0] - 3) out.push({ prio: 2, t: "Ferse hängt unten durch",
+      why: `Fußwinkel am unteren Totpunkt ${fmt(m.footBDC.v)}°. Die Ferse kommt weit runter – Sattel eher zu tief oder Cleats sehr weit hinten.` });
+  }
   out.forEach(r => { const mm = r.t.match(/ca\. (\d+) mm/); if (mm && +mm[1] > 30) r.why += " ⚠️ Ungewöhnlich großer Wert – erst Kameraposition (exakt seitlich, nicht schräg?) und Kurbellänge prüfen, dann nur schrittweise ändern."; });
   if (!out.length) out.push({ prio: 0, t: "Position passt 👍", why: "Alle Kernwerte liegen im Zielbereich deines Profils. Nur bei Beschwerden nachjustieren." });
   out.sort((x, y) => (x.prio || 9) - (y.prio || 9));
@@ -1080,7 +1349,9 @@ function recommendations(a) {
 
 /* ---------- Rendering ---------- */
 async function renderResults(a, withShots) {
+  if (a.kind === "frontal") return renderFrontal(a, withShots);
   const P = PROFILES[a.profileKey], R = P.r;
+  $("chartNote").textContent = "Knie (orange) und Hüfte (blau) über die Zeit · Punkte = unterer Totpunkt";
   $("results").classList.remove("hidden");
   $("resTitle").textContent = (P.bike === "tt" ? "🏁 " : "🚴 ") + P.name;
   $("resMeta").textContent = `${a.cycles} Umdrehungen · Trittfrequenz ~${fmt(a.cadence)} U/min · Seite: ${a.side === "right" ? "rechts" : "links"} · Erkennungsqualität ${fmt(a.visibility * 100)} % · Maßstab ${fmt(a.mmPerPx, 2)} mm/px (aus Kurbellänge ${a.crank} mm)`;
@@ -1096,7 +1367,7 @@ async function renderResults(a, withShots) {
     const lbl = { ok: "im Ziel", warn: "knapp daneben", bad: "außerhalb", info: "Info" }[s];
     return `<tr><td><b>${METRIC_INFO[k].n}</b><div class="sub">${METRIC_INFO[k].d}</div></td><td>${fmt(a.m[k].v, 1)}${METRIC_INFO[k].u}<div class="sub">± ${fmt(a.m[k].sd, 1)} (n=${a.m[k].n})</div></td><td>${R[k] ? R[k][0] + "–" + R[k][1] + METRIC_INFO[k].u : "–"}</td><td><span class="tag ${s}">${lbl}</span></td></tr>`;
   });
-  rows.push(`<tr><td><b>Fußgelenk (Range)</b><div class="sub">Knie–Knöchel–Fußspitze; große Spanne = viel „Ankling“</div></td><td>${fmt(a.ankleRange.min)}–${fmt(a.ankleRange.max)}°</td><td>–</td><td><span class="tag info">Info</span></td></tr>`);
+  ["footBDC", "foot3", "ankleROM", "hipBounce", "hipDrift"].filter(k => a.m[k]).forEach(k => rows.push(metricRow(k, a.m[k], FOOT_T[k])));
   rows.push(`<tr><td><b>Segmentlängen</b><div class="sub">geschätzt aus dem Video</div></td><td colspan="3">Oberschenkel ${fmt(a.seg.thigh)} mm · Unterschenkel ${fmt(a.seg.shank)} mm · Rumpf ${fmt(a.seg.torso)} mm · Oberarm ${fmt(a.seg.upperArm)} mm</td></tr>`);
   if (P.bike === "tt") rows.push(`<tr><td><b>Knie über Pedal</b></td><td>${fmt(a.m.kops.v)} mm</td><td>–</td><td><span class="tag info">beim TT nicht bewertet</span></td></tr>`);
   $("table").innerHTML = `<tr><th>Messwert</th><th>Ist</th><th>Ziel</th><th>Status</th></tr>` + rows.join("");
@@ -1105,10 +1376,59 @@ async function renderResults(a, withShots) {
   renderHistory();
 }
 
+const rng = (T, u) => T[0] < 0 ? `${T[0]} bis ${fmtS(T[1])}${u}` : `${T[0]}–${T[1]}${u}`;
+const STATUS_LBL = { ok: "im Ziel", warn: "knapp daneben", bad: "außerhalb", info: "Info" };
+function metricRow(k, mv, T, signed) {
+  const s = T ? status(mv.v, T) : "info", I = METRIC_INFO[k], d = I.u === "°" ? 1 : 0;
+  return `<tr><td><b>${I.n}</b><div class="sub">${I.d}</div></td><td>${(signed ? fmtS : fmt)(mv.v, d)}${I.u}${mv.sd ? `<div class="sub">± ${fmt(mv.sd, 1)} (n=${mv.n})</div>` : ""}</td><td>${T ? rng(T, I.u) : "–"}</td><td><span class="tag ${s}">${STATUS_LBL[s]}</span></td></tr>`;
+}
+const SIGNED = new Set(["pelvisTilt", "kneeDevL", "kneeDevR", "footRotL", "footRotR"]);
+async function renderFrontal(a, withShots) {
+  const P = PROFILES[a.profileKey], T = FRONTAL_T;
+  $("results").classList.remove("hidden");
+  $("resTitle").textContent = (a.view === "front" ? "⬆ Von vorne · " : "⬇ Von hinten · ") + P.name;
+  $("resMeta").textContent = `${a.cycles} Umdrehungen · Trittfrequenz ~${fmt(a.cadence)} U/min · Erkennungsqualität ${fmt(a.visibility * 100)} % · links/rechts aus Sicht des Fahrers · % = Anteil der Hüftbreite (10 % ≈ 1,5–2 cm)`;
+  const keys = ["pelvisRock", "pelvisTilt", "hipSway", "kneeTravelL", "kneeTravelR", "kneeDevL", "kneeDevR", "shoulderRock"];
+  $("kpis").innerHTML = keys.map(k => {
+    const v = a.m[k].v, s = status(v, T[k]), I = METRIC_INFO[k];
+    return `<div class="kpi ${s}"><div class="n">${I.n}</div><div class="v">${(SIGNED.has(k) ? fmtS : fmt)(v, I.u === "°" ? 1 : 0)}${I.u}</div><div class="r">Ziel ${rng(T[k], I.u)}</div></div>`;
+  }).join("");
+  $("recs").innerHTML = frontalRecs(a).map(r => `<li class="${r.prio === 0 ? "good" : "prio" + r.prio}"><b>${r.t}</b><div class="why">${r.why}</div></li>`).join("");
+  const rows = keys.concat(["bodySway", "footRotL", "footRotR", "stance"]).map(k => metricRow(k, a.m[k], T[k], SIGNED.has(k)));
+  $("table").innerHTML = `<tr><th>Messwert</th><th>Ist</th><th>Ziel</th><th>Status</th></tr>` + rows.join("");
+  $("chartNote").textContent = "Becken-Neigung (orange) und Schulter-Neigung (blau) · + = linke Seite tiefer · Punkte = linkes Bein unten";
+  drawChart(a);
+  if (withShots && frames.length) await makeShots(a);
+  renderHistory();
+}
+function drawFrontalSkeleton(ctx, l, r, sc, col) {
+  ctx.lineCap = "round";
+  const seg = (a, b, c, w) => { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
+  const W = Math.max(3, 5 * sc);
+  ctx.setLineDash([10 * sc, 8 * sc]);
+  for (const q of [l, r]) seg(q.hip, q.an, "rgba(255,255,255,.75)", Math.max(1.5, 2 * sc));
+  ctx.setLineDash([]);
+  for (const [q, c] of [[l, col || "#e4572e"], [r, col || "#3b82f6"]]) { seg(q.sh, q.hip, c, W); seg(q.hip, q.kn, c, W); seg(q.kn, q.an, c, W); seg(q.an, q.toe, c, W); }
+  seg(l.hip, r.hip, "#ffd400", W); seg(l.sh, r.sh, "#ffd400", W);
+  ctx.fillStyle = "#fff";
+  for (const q of [l, r]) for (const p of [q.sh, q.hip, q.kn, q.an, q.toe]) { ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(4, 6 * sc), 0, 7); ctx.fill(); }
+}
 const COLORS = { line: "#e4572e", joint: "#ffffff", txt: "#ffffff" };
 function drawPose(f, label, ctx = octx, clear = true) {
   if (clear) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   if (!f || !f.L) return;
+  const fv = analysis ? (analysis.kind === "frontal" ? analysis.view : "side") : view;
+  if (fv !== "side") {
+    const { l, r } = riderSides(f.L, fv), sc = ctx.canvas.width / 900;
+    drawFrontalSkeleton(ctx, l, r, sc);
+    const pt = deg(Math.atan2(l.hip.y - r.hip.y, Math.abs(l.hip.x - r.hip.x)));
+    const txt = `Becken ${fmtS(pt, 1)}°`, x = (l.hip.x + r.hip.x) / 2, y = Math.min(l.hip.y, r.hip.y) - 20 * sc;
+    ctx.font = `bold ${Math.max(14, 26 * sc)}px system-ui`; const w = ctx.measureText(txt).width;
+    ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(x - w / 2 - 6, y - 26 * sc, w + 12, 34 * sc);
+    ctx.fillStyle = "#fff"; ctx.fillText(txt, x - w / 2, y);
+    if (label) { ctx.font = `bold ${Math.max(16, 30 * sc)}px system-ui`; ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(0, 0, ctx.measureText(label).width + 24, 44 * sc); ctx.fillStyle = "#fff"; ctx.fillText(label, 12, 32 * sc); }
+    return;
+  }
   const side = analysis?.side || ($("side").value === "left" ? "left" : "right");
   const I = LM[side], p = k => f.L[I[k]];
   const sc = ctx.canvas.width / 900;
@@ -1140,7 +1460,9 @@ video.addEventListener("seeked", () => { if (frames.length && analysis) drawPose
 async function makeShots(a) {
   const c = document.createElement("canvas"); c.width = video.videoWidth; c.height = video.videoHeight;
   const ctx = c.getContext("2d");
-  const items = [["Unterer Totpunkt – Sattelhöhe", a.keyIdx.bdc], ["Oberer Totpunkt – Hüfte/Knie", a.keyIdx.tdc], ["3 Uhr – Knie über Pedal", a.keyIdx.three]];
+  const items = a.kind === "frontal"
+    ? [["Linkes Bein unten", a.keyIdx.bdcL], ["Rechtes Bein unten", a.keyIdx.bdcR], ["Stärkstes Becken-Kippen", a.keyIdx.rock]]
+    : [["Unterer Totpunkt – Sattelhöhe", a.keyIdx.bdc], ["Oberer Totpunkt – Hüfte/Knie", a.keyIdx.tdc], ["3 Uhr – Knie über Pedal", a.keyIdx.three]];
   const html = [];
   for (const [lbl, idx] of items) {
     const t = a.validTimes[idx]; if (t == null) continue;
@@ -1148,12 +1470,12 @@ async function makeShots(a) {
     ctx.drawImage(video, 0, 0, c.width, c.height);
     const f = nearestFrame(t);
     drawPose(f, lbl, ctx, false);
-    if (lbl.startsWith("3 Uhr") && f) {
+    if (a.kind !== "frontal" && lbl.startsWith("3 Uhr") && f) {
       const I = LM[a.side], kn = f.L[I.kn];
       ctx.setLineDash([12, 10]); ctx.strokeStyle = "#ffd400"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(kn.x, kn.y); ctx.lineTo(kn.x, c.height); ctx.stroke(); ctx.setLineDash([]);
     }
-    html.push(`<figure><img src="${c.toDataURL("image/jpeg", .82)}" alt="${lbl}"><figcaption>${lbl} · t=${t.toFixed(2)} s</figcaption></figure>`);
+    html.push(`<figure><img src="${c.toDataURL("image/jpeg", .82)}" alt="${lbl}"><figcaption>${lbl} · t=${t.toFixed(2)} s${a.kind === "frontal" ? " · orange = links, blau = rechts, gestrichelt = Linie Hüfte–Fuß" : ""}</figcaption></figure>`);
   }
   $("shots").innerHTML = html.join("");
   drawPose(nearestFrame(video.currentTime));
@@ -1168,11 +1490,13 @@ function drawChart(a) {
   const { t, knee, hip } = a.series; if (!t.length) return;
   const pad = { l: 36, r: 8, t: 8, b: 22 };
   const all = knee.concat(hip).filter(Number.isFinite);
-  const y0 = Math.floor(Math.min(...all) / 10) * 10, y1 = Math.ceil(Math.max(...all) / 10) * 10;
+  const lo = Math.min(...all), hi = Math.max(...all), sp = hi - lo;
+  const step = sp > 60 ? 20 : sp > 20 ? 10 : sp > 8 ? 5 : 2;
+  const y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi / step) * step;
   const X = v => pad.l + (v - t[0]) / (t[t.length - 1] - t[0] || 1) * (W - pad.l - pad.r);
   const Y = v => pad.t + (1 - (v - y0) / (y1 - y0 || 1)) * (H - pad.t - pad.b);
   ctx.font = "11px system-ui"; ctx.fillStyle = muted; ctx.strokeStyle = line; ctx.lineWidth = 1;
-  for (let v = y0; v <= y1; v += 20) { ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(W - pad.r, Y(v)); ctx.stroke(); ctx.fillText(v + "°", 4, Y(v) + 4); }
+  for (let v = y0; v <= y1; v += step) { ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(W - pad.r, Y(v)); ctx.stroke(); ctx.fillText(v + "°", 4, Y(v) + 4); }
   ctx.fillText(t[0].toFixed(1) + " s", pad.l, H - 6); const e = t[t.length - 1].toFixed(1) + " s"; ctx.fillText(e, W - pad.r - ctx.measureText(e).width, H - 6);
   const plot = (arr, col) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); arr.forEach((v, i) => { if (!Number.isFinite(v)) return; i ? ctx.lineTo(X(t[i]), Y(v)) : ctx.moveTo(X(t[i]), Y(v)); }); ctx.stroke(); };
   plot(knee, "#e4572e"); plot(hip, "#3b82f6");
@@ -1181,6 +1505,141 @@ function drawChart(a) {
 }
 window.addEventListener("resize", () => analysis && drawChart(analysis));
 
+/* ---------- Sattel & Fußstellung ---------- */
+const TOOLS_KEY = "bikefit_tools_v1";
+let tools = {}; try { tools = JSON.parse(localStorage.getItem(TOOLS_KEY) || "{}") || {}; } catch {}
+const saveTools = () => { try { localStorage.setItem(TOOLS_KEY, JSON.stringify(tools)); } catch {} };
+const tb = () => (tools[bike] ||= {});
+const TILT_T = { road: [-2, 0.5], tt: [-5, -2] };
+const SADDLE_SYM = [["numb", "Taubheit / Druck im Schritt"], ["slideFwd", "Rutsche nach vorne, schiebe mich zurück"], ["hands", "Viel Druck auf Händen / Unterarmen"],
+  ["slideBack", "Rutsche nach hinten / Druck an den Sitzknochen"], ["back", "Schmerzen im unteren Rücken"], ["sore", "Wundscheuern / Sattel drückt seitlich"]];
+const FOOT_SYM = [["hot", "Taube Zehen / brennende Fußsohle (Hot Foot)"], ["calf", "Wade oder Achillessehne verspannt"], ["kneeIn", "Knie schmerzt innen"],
+  ["kneeOut", "Knie schmerzt außen"], ["kneeFront", "Knie schmerzt vorne (Kniescheibe)"], ["arch", "Fußgewölbe knickt ein / Knie fällt nach innen"]];
+function symBoxes(id, list, g) { $(id).innerHTML = list.map(([k, t]) => `<label class="chk"><input type="checkbox" data-k="${k}" data-g="${g}"> ${t}</label>`).join(""); }
+symBoxes("saddleSym", SADDLE_SYM, "saddleSym"); symBoxes("footSym", FOOT_SYM, "footSym");
+for (const id of ["saddleSym", "footSym"]) $(id).addEventListener("change", e => {
+  const i = e.target; if (!i.dataset.k) return;
+  const set = new Set(tb()[i.dataset.g] || []); i.checked ? set.add(i.dataset.k) : set.delete(i.dataset.k);
+  tb()[i.dataset.g] = [...set]; saveTools(); renderTools();
+});
+$("tiltVal").addEventListener("input", () => { const v = parseFloat(String($("tiltVal").value).replace(",", ".")); tb().tilt = Number.isFinite(v) ? v : null; saveTools(); renderTools(); });
+$("shoeSize").addEventListener("input", () => { const v = parseFloat($("shoeSize").value); tools.size = Number.isFinite(v) ? v : null; saveTools(); renderTools(); });
+$("footTest").addEventListener("change", () => { tb().footTest = $("footTest").value; saveTools(); renderTools(); });
+function syncTools() {
+  const t = tb();
+  $("tiltVal").value = t.tilt ?? ""; $("shoeSize").value = tools.size ?? ""; $("footTest").value = t.footTest || "";
+  document.querySelectorAll("#saddleSym input, #footSym input").forEach(i => { i.checked = (t[i.dataset.g] || []).includes(i.dataset.k); });
+  document.querySelectorAll(".bikeName").forEach(e => { e.textContent = bike === "tt" ? "Zeitfahrer" : "Rennrad"; });
+  renderTools();
+}
+const fmtTilt = v => !Number.isFinite(v) ? "–" : Math.abs(v) < 0.25 ? "waagerecht (0°)" : `${fmt(Math.abs(v), 1)}° Nase ${v < 0 ? "runter" : "hoch"}`;
+const r05 = v => Math.round(v * 2) / 2;
+const recLi = r => `<li class="${r.prio === 0 ? "good" : r.prio === "info" ? "info" : "prio" + r.prio}"><b>${r.t}</b><div class="why">${r.why}</div></li>`;
+const prioSort = (a, b) => ({ 1: 0, 2: 1, info: 2, 0: 3 }[a.prio] - { 1: 0, 2: 1, info: 2, 0: 3 }[b.prio]);
+function renderTools() { try { renderSaddle(); renderFoot(); } catch (e) { console.error(e); } }
+
+function renderSaddle() {
+  const t = tb(), T = TILT_T[bike], sym = new Set(t.saddleSym || []), out = [];
+  const sideA = lastOf(bike, "side"), fr = lastOf(bike, "frontal"), d = x => new Date(x.date).toLocaleDateString("de-DE");
+  let adj = 0; const why = [];
+  const drift = sideA?.m.hipDrift?.v;
+  if (sym.has("numb")) { adj -= 1; why.push("Taubheit → Nase etwas runter entlastet den Dammbereich"); }
+  if (sym.has("slideFwd")) { adj += 1; why.push("Rutschen nach vorne → Nase etwas hoch"); }
+  else if (drift > 15) { adj += 1; why.push(`Video: Hüfte wandert ${fmt(drift)} mm nach vorn → Nase etwas hoch`); }
+  if (sym.has("hands")) { adj += 0.5; why.push("Druck auf Händen → Nase minimal hoch, damit du nicht nach vorn rutschst"); }
+  if (sym.has("slideBack")) { adj -= 0.5; why.push("Rutschen nach hinten → Nase minimal runter"); }
+  if (sym.has("back")) { adj -= 0.5; why.push("Unterer Rücken → etwas mehr Nase runter lässt das Becken nach vorn kippen"); }
+  const goal = r05(Math.max(T[0], Math.min(T[1], mid(T) + adj)));
+  $("tiltTarget").innerHTML = `Üblicher Bereich ${bike === "tt" ? "Zeitfahrer/Tri" : "Rennrad"}: <b>${fmt(T[0], 1)}° bis ${fmtS(T[1], 1)}°</b> · deine Zielneigung: <b>${fmtTilt(goal)}</b>`;
+  const tilt = t.tilt;
+  if (Number.isFinite(tilt)) {
+    let delta = goal - tilt;
+    // Symptom schiebt in eine Richtung, die Neigung steht dort schon weiter → nicht zurückdrehen
+    if (!adj && tilt >= T[0] && tilt <= T[1]) delta = 0;   // im üblichen Bereich & keine Beschwerden → so lassen
+    if (adj && Math.sign(delta) !== Math.sign(adj)) {
+      if (tilt >= T[0] && tilt <= T[1]) delta = 0;
+      else { delta = (tilt < T[0] ? T[0] : T[1]) - tilt; why.push("wegen deiner Beschwerden nur bis an den Rand des üblichen Bereichs"); }
+    }
+    if (Math.abs(delta) < 0.5) out.push({ prio: 0, t: `Neigung passt (${fmtTilt(tilt)})`, why: why.length ? why.join(" · ") : "Liegt im üblichen Bereich." });
+    else out.push({ prio: Math.abs(delta) >= 2 ? 1 : 2, t: `Sattelnase ca. ${fmt(r05(Math.abs(delta)), 1)}° ${delta > 0 ? "anheben" : "absenken"}`,
+      why: `Aktuell ${fmtTilt(tilt)}, Ziel ${fmtTilt(tilt + delta)}.${why.length ? " " + why.join(" · ") + "." : ""}${Math.abs(delta) > 1.5 ? " Nicht auf einmal: zuerst ca. 1° ändern, ein paar Ausfahrten testen, dann weiter." : ""} Nach dem Verstellen Sattelhöhe kontrollieren – die Neigung verändert die effektive Höhe leicht.` });
+  } else out.push({ prio: "info", t: "Neigung messen", why: `Mit dem Handy oder einer Wasserwaage messen und eintragen. Ziel für dich: ${fmtTilt(goal)}.${why.length ? " " + why.join(" · ") + "." : ""}` });
+  if (sym.has("numb") && (sym.has("slideFwd") || (Number.isFinite(tilt) && tilt <= T[0])))
+    out.push({ prio: 2, t: "Eher anderer Sattel als mehr Neigung", why: `Taubheit trotz ${sym.has("slideFwd") ? "Rutschen nach vorne" : "schon stark geneigter Nase"} – Neigung allein löst das nicht. Sattel mit Aussparung bzw. kurzer, geteilter Nase testen${bike === "tt" ? " (am Zeitfahrer üblich)" : ""}.` });
+  if (sym.has("sore")) out.push({ prio: 2, t: "Sattel scheuert seitlich", why: "Oft ist der Sattel zu hoch (Becken kippt) oder die Breite passt nicht zum Sitzknochenabstand – Sitzknochen vermessen lassen. Video von hinten zeigt, ob das Becken kippt." });
+  if (sideA) {
+    const sr = recommendations(sideA).filter(r => r.t.startsWith("Sattel"));
+    if (sr.length) sr.forEach(r => out.push({ prio: r.prio, t: r.t, why: `Seitenanalyse vom ${d(sideA)}: ${r.why}` }));
+    else out.push({ prio: 0, t: "Sattelhöhe & -versatz passen", why: `Laut Seitenanalyse vom ${d(sideA)} (Kniebeugung unten ${fmt(sideA.m.kneeFlexBDC.v)}°).` });
+  } else out.push({ prio: "info", t: "Sattelhöhe & -versatz", why: "Für konkrete mm-Werte eine Seitenanalyse dieses Rads machen." });
+  if (fr && status(fr.m.pelvisRock.v, FRONTAL_T.pelvisRock) !== "ok") out.push({ prio: 2, t: "Becken kippt (Video von hinten/vorne)", why: `Analyse vom ${d(fr)}: Becken schaukelt ${fmt(fr.m.pelvisRock.v, 1)}° – Sattelhöhe und Sattelbreite prüfen.` });
+  if (bike === "tt") out.push({ prio: "info", t: "Zeitfahrer: Sitzen auf der Nase", why: "In Aeroposition sitzt du weiter vorne auf dem Sattel – deshalb deutlich mehr Nase runter als am Rennrad. Ein kurzer Sattel mit breiter, gepolsterter Nase entlastet zusätzlich." });
+  $("saddleRecs").innerHTML = out.sort(prioSort).map(recLi).join("");
+}
+
+const MTP_OFFSET = z => z <= 38 ? 8 : z <= 40 ? 9 : z <= 42 ? 10 : z <= 44 ? 11 : z <= 46 ? 12 : 13;
+function renderFoot() {
+  const t = tb(), sym = new Set(t.footSym || []), out = [], size = +tools.size;
+  const sideA = lastOf(bike, "side"), fr = lastOf(bike, "frontal");
+  if (size >= 30 && size <= 52) {
+    let off = MTP_OFFSET(size); const why = [`Grundwert für Größe ${size}: ${off} mm`];
+    if (bike === "tt") { off += 4; why.push("+4 mm Zeitfahrer/Tri: schont die Wade, besser fürs Laufen danach"); }
+    if (sym.has("calf")) { off += 2; why.push("+2 mm wegen Wade/Achillessehne"); }
+    if (sym.has("hot")) { off += 2; why.push("+2 mm wegen Hot Foot (Druck weg vom Vorfuß)"); }
+    const fb = sideA?.m.footBDC?.v, rom = sideA?.m.ankleROM?.v;
+    if (Number.isFinite(fb) && (fb > FOOT_T.footBDC[1] + 5 || rom > FOOT_T.ankleROM[1] + 5)) { off += 2; why.push(`+2 mm: Seitenvideo zeigt viel Fußgelenk-Arbeit (Fußwinkel unten ${fmt(fb)}°)`); }
+    else if (Number.isFinite(fb) && fb < FOOT_T.footBDC[0] - 3) { off -= 2; why.push(`−2 mm: Ferse hängt im Seitenvideo unten durch (${fmt(fb)}°)`); }
+    out.push({ prio: "info", t: `Cleat längs: Pedalachse ca. ${off} mm hinter dem Großzehen-Grundgelenk`, why: why.join(" · ") + ". Gängige Faustregel als Startpunkt – in 2-mm-Schritten anpassen." });
+  } else out.push({ prio: "info", t: "Schuhgröße eintragen", why: "Dann bekommst du eine Startposition für die Cleats (längs)." });
+
+  const rw = [], ft = t.footTest;
+  if (ft === "out") rw.push("Deine Füße zeigen natürlich nach außen → Cleats so drehen, dass die Fußspitze leicht nach außen zeigt (Ferse etwas nach innen). Nicht gerade erzwingen.");
+  else if (ft === "in") rw.push("Deine Füße zeigen eher nach innen → Cleats so drehen, dass die Ferse etwas nach außen kommt.");
+  else if (ft === "straight") rw.push("Deine Füße hängen gerade → Cleats gerade montieren (Mittelmarkierung parallel zur Schuh-Längsachse).");
+  else rw.push("Mach den Fußtest, dann siehst du hier, wie du die Cleats drehen solltest.");
+  if (fr && (Number.isFinite(fr.m.footRotL?.v) || Number.isFinite(fr.m.footRotR?.v))) rw.push(`Video ${fr.view === "front" ? "von vorne" : "von hinten"}: Fußspitze links ${fmtS(fr.m.footRotL.v)} %, rechts ${fmtS(fr.m.footRotR.v)} % (+ = außen).`);
+  if (sym.has("kneeIn")) rw.push("Knie innen: häufig Fußspitze zu weit außen oder Stand zu breit → Cleat etwas gerader drehen bzw. Fuß 1–2 mm enger (Cleat nach außen).");
+  if (sym.has("kneeOut")) rw.push("Knie außen: häufig Fußspitze zu weit innen oder Stand zu eng → Ferse etwas nach innen drehen bzw. Fuß 1–2 mm breiter (Cleat nach innen / Spacer).");
+  rw.push("Cleats mit Float (z. B. 6°) lassen dem Knie Spielraum, sich einzupendeln.");
+  out.push({ prio: sym.has("kneeIn") || sym.has("kneeOut") ? 2 : "info", t: "Cleat-Rotation", why: rw.join(" ") });
+
+  if (fr) {
+    for (const [k, nm] of [["L", "links"], ["R", "rechts"]]) {
+      const dev = fr.m["kneeDev" + k]?.v;
+      if (dev > FRONTAL_T.kneeDevL[1]) out.push({ prio: 2, t: `Knie ${nm} läuft innen → Fuß ${nm} enger / Varus-Keil`, why: `Video: Knie ${fmt(dev)} % innerhalb der Linie Hüfte–Fuß. Cleat ${nm} ca. 1–2 mm nach außen schieben (Fuß wandert nach innen) oder 1 Varus-Keil (dicke Seite innen) bzw. Einlage mit Gewölbestütze.` });
+      else if (dev < FRONTAL_T.kneeDevL[0]) out.push({ prio: 2, t: `Knie ${nm} läuft außen → Fuß ${nm} breiter`, why: `Video: Knie ${fmt(-dev)} % außerhalb der Linie Hüfte–Fuß. Cleat ${nm} ca. 1–2 mm nach innen schieben (Fuß wandert nach außen) oder Pedal-Spacer.` });
+    }
+    if (!out.some(r => r.t.startsWith("Knie "))) out.push({ prio: 0, t: "Knie-Spur passt", why: `Video vom ${new Date(fr.date).toLocaleDateString("de-DE")}: Knie laufen über dem Fuß – seitliche Cleat-Position so lassen.` });
+  } else out.push({ prio: "info", t: "Knie-Spur prüfen", why: "Für die seitliche Cleat-Position und Keile ein Video von vorne aufnehmen (oben Ansicht „Vorne“ wählen)." });
+  if (sym.has("arch")) out.push({ prio: 2, t: "Fußgewölbe stützen", why: "Ein einknickendes Gewölbe lässt das Knie nach innen fallen: Einlage mit Gewölbestütze oder Varus-Keil unter dem Cleat. Danach das Video von vorne wiederholen." });
+  if (sym.has("kneeFront")) out.push({ prio: 2, t: "Knie vorne: Sattel prüfen", why: sideA ? `Häufig Sattel zu tief oder zu weit vorne. Seitenanalyse: Kniebeugung unten ${fmt(sideA.m.kneeFlexBDC.v)}°, Knie über Pedal ${fmt(sideA.m.kops.v)} mm.` : "Häufig Sattel zu tief oder zu weit vorne – eine Seitenanalyse zeigt es." });
+  if (sym.has("hot")) out.push({ prio: 2, t: "Hot Foot", why: "Cleats weiter nach hinten (siehe oben), Schuh vorne etwas lockerer, ggf. Einlage mit Mittelfußpelotte. Auf der Langdistanz besonders wichtig." });
+  if (sideA?.m.footBDC) out.push({ prio: "info", t: "Fußarbeit laut Seitenvideo", why: `Fußwinkel unten ${fmt(sideA.m.footBDC.v)}° (Richtwert ${FOOT_T.footBDC[0]}–${FOOT_T.footBDC[1]}°) · bei 3 Uhr ${fmtS(sideA.m.foot3?.v)}° · Fußgelenk-Bewegung ${fmt(sideA.m.ankleROM.v)}° (Richtwert ${FOOT_T.ankleROM[0]}–${FOOT_T.ankleROM[1]}°).` });
+  $("footRecs").innerHTML = out.sort(prioSort).map(recLi).join("");
+}
+
+// Sattelneigung mit dem Lagesensor messen
+const tilt = { zero: 0, cur: null };
+function onTilt(e) {
+  if (e.beta == null) return;
+  tilt.cur = tilt.cur == null ? e.beta : tilt.cur * 0.85 + e.beta * 0.15;
+  $("tiltLive").textContent = fmtTilt(tilt.cur - tilt.zero);
+}
+$("tiltMeasure").onclick = async () => {
+  $("tiltTool").classList.remove("hidden"); $("tiltMsg").textContent = "";
+  try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission(); } catch {}
+  tilt.cur = null; window.addEventListener("deviceorientation", onTilt);
+  setTimeout(() => { if (tilt.cur == null) $("tiltMsg").textContent = "Kein Lagesensor gefunden (z. B. am Laptop) – Seite am Handy öffnen oder mit einer Wasserwaage messen und oben eintragen."; }, 1500);
+};
+$("tiltZero").onclick = () => { if (tilt.cur == null) return; tilt.zero = tilt.cur; $("tiltMsg").textContent = "Nullpunkt gesetzt – jetzt das Handy auf den Sattel legen."; };
+$("tiltTake").onclick = () => {
+  if (tilt.cur == null) return;
+  const v = Math.round((tilt.cur - tilt.zero) * 10) / 10;
+  $("tiltVal").value = v; tb().tilt = v; saveTools(); renderTools();
+  $("tiltMsg").textContent = `Übernommen: ${fmtTilt(v)}`;
+};
+$("tiltClose").onclick = () => { window.removeEventListener("deviceorientation", onTilt); $("tiltTool").classList.add("hidden"); };
+
 /* ---------- Verlauf / Vergleich ---------- */
 function loadHist() { try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); } catch { return []; } }
 function storeHist(h) { try { localStorage.setItem(STORE_KEY, JSON.stringify(h.slice(-40))); } catch {} }
@@ -1188,7 +1647,7 @@ function slim(a) { const { series, keyIdx, validTimes, ...rest } = a; return res
 function saveHistory(a) { const h = loadHist(); h.push(slim(a)); storeHist(h); renderHistory(); }
 function renderHistory() {
   const h = loadHist();
-  const last = b => [...h].reverse().find(x => PROFILES[x.profileKey]?.bike === b);
+  const last = b => [...h].reverse().find(x => PROFILES[x.profileKey]?.bike === b && (x.kind || "side") === "side");
   const road = last("road"), tt = last("tt");
   const keys = ["kneeFlexBDC", "kneeTDC", "hipTDC", "back", "shoulder", "elbow"];
   $("cmp").innerHTML = `<tr><th>Messwert</th><th>Rennrad</th><th>Zeitfahrer</th><th>Δ</th></tr>` + keys.map(k => {
@@ -1203,9 +1662,14 @@ function renderHistory() {
     note += dh > 10 ? `Hüftwinkel am Zeitfahrer ${fmt(dh)}° geschlossener als am Rennrad – Sattel am TT ggf. weiter nach vorn, damit die Hüfte offen bleibt.` : "Hüftwinkel zwischen beiden Rädern im üblichen Rahmen.";
   } else note = "Analysiere beide Räder, um sie hier zu vergleichen.";
   $("cmpNote").textContent = note;
-  $("hist").innerHTML = h.length ? `<tr><th>Datum</th><th>Rad / Profil</th><th>Knie unten</th><th>Rücken</th><th>Hüfte oben</th><th>U/min</th></tr>` +
-    [...h].reverse().map(x => `<tr><td>${new Date(x.date).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}</td><td>${PROFILES[x.profileKey]?.name || x.profileKey}</td><td>${fmt(x.m.kneeFlexBDC.v)}°</td><td>${fmt(x.m.back.v)}°</td><td>${fmt(x.m.hipTDC.v)}°</td><td>${fmt(x.cadence)}</td></tr>`).join("")
+  const VN = { side: "Seite", front: "Vorne", rear: "Hinten" };
+  const sum = x => x.kind === "frontal"
+    ? `Becken ${fmt(x.m.pelvisRock.v, 1)}° · Knie L ${fmt(x.m.kneeTravelL.v)} % / R ${fmt(x.m.kneeTravelR.v)} %`
+    : `Knie unten ${fmt(x.m.kneeFlexBDC.v)}° · Rücken ${fmt(x.m.back.v)}° · Hüfte ${fmt(x.m.hipTDC.v)}°`;
+  $("hist").innerHTML = h.length ? `<tr><th>Datum</th><th>Rad / Profil</th><th>Ansicht</th><th>Kernwerte</th><th>U/min</th></tr>` +
+    [...h].reverse().map(x => `<tr><td>${new Date(x.date).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}</td><td>${PROFILES[x.profileKey]?.name || x.profileKey}</td><td>${VN[x.view || "side"]}</td><td>${sum(x)}</td><td>${fmt(x.cadence)}</td></tr>`).join("")
     : `<tr><td class="sub">Noch keine Analysen gespeichert.</td></tr>`;
+  renderTools();
 }
 $("clearBtn").onclick = () => { if (confirm("Gesamten Verlauf löschen?")) { storeHist([]); renderHistory(); } };
 $("jsonBtn").onclick = () => {
@@ -1223,6 +1687,7 @@ $("importFile").onchange = async e => {
 };
 $("printBtn").onclick = () => window.print();
 renderHistory();
+syncTools();
 </script>
 </body>
 </html>

@@ -19,6 +19,32 @@ Du lädst ein Seitenvideo von dir auf der Rolle hoch, die App erkennt per Pose-E
 
 Dazu: Snapshots der Schlüsselpositionen mit eingezeichneten Winkeln, Winkelverlauf als Diagramm, Verlauf aller Analysen und ein **Vergleich Rennrad ↔ Zeitfahrer**.
 
+## Ansichten: Seite, hinten, vorne
+
+Oben im Setup wählst du die **Ansicht**. Die Live-Ausrichtung passt ihre Checkliste automatisch an.
+
+| Ansicht | Kamera | Was analysiert wird |
+|---|---|---|
+| **Seite** | exakt seitlich, Höhe Hüfte–Tretlager | Sattelhöhe, Sattel vor/zurück, Front, Fußwinkel, Becken auf/ab, Rutschen nach vorn |
+| **Hinten** | genau hinter dem Rad, Sattelhöhe | Becken-Kippen (Wackeln), Becken-Schiefstand (Beinlänge), Knie-Spur, Oberkörper |
+| **Vorne** | genau vor dem Rad, Kniehöhe | Knie-Spur (Knie über Fuß), Fußrotation, Oberkörper |
+
+Links/rechts ist immer aus Sicht des Fahrers. Seitliche Werte werden in % der Hüftbreite angegeben (10 % ≈ 1,5–2 cm). Die Empfehlungen von hinten/vorne werden mit der letzten Seitenanalyse desselben Rads abgeglichen (z. B. Becken kippt **und** Bein zu gestreckt → Sattel tiefer).
+
+## Sattel: Neigung & Position
+
+- Neigung eintragen oder **mit dem Handy messen** (Lagesensor als digitale Wasserwaage: Nullpunkt auf dem Boden, dann längs auf den Sattel).
+- Beschwerden ankreuzen (Taubheit, Rutschen, Druck auf Händen …) → konkrete Empfehlung in Grad, getrennt für Rennrad und Zeitfahrer.
+- Sattelhöhe/-versatz aus der Seitenanalyse und Becken-Kippen aus der Analyse von hinten werden hier zusammengeführt.
+
+## Fußstellung & Cleats
+
+- Schuhgröße + Fußtest + Beschwerden → Startposition der Cleats längs (mm hinter dem Großzehen-Grundgelenk, am Zeitfahrer weiter hinten), Rotation, seitliche Position, Keile/Einlagen.
+- Fließen automatisch ein: Fußwinkel und Fußgelenk-Bewegung aus dem Seitenvideo, Knie-Spur und Fußrotation aus dem Video von vorne.
+- Schritt-für-Schritt-Anleitung zum Anzeichnen der Cleats.
+
+Alle Eingaben werden pro Rad im Browser gespeichert.
+
 ## Millimeter-Angaben
 
 Der Maßstab wird aus deiner **Kurbellänge** berechnet (der Fuß beschreibt einen Kreis mit etwa diesem Radius). Kurbellänge also korrekt eintragen. Die mm-Werte sind Schätzungen – immer schrittweise (max. ~5 mm) ändern und neu filmen.
